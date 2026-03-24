@@ -1,0 +1,52 @@
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider, useAuth } from './context/AuthContext';
+import DashboardLayout from './components/layout/DashboardLayout';
+import Dashboard from './pages/Dashboard';
+import EmployeeManagement from './pages/EmployeeManagement';
+import Attendance from './pages/Attendance';
+import Leaves from './pages/Leaves';
+import Payroll from './pages/Payroll';
+import Reports from './pages/Reports';
+import Settings from './pages/Settings';
+import Login from './pages/Login';
+
+const ProtectedRoute = ({ children }) => {
+  const { user, loading } = useAuth();
+  
+  if (loading) return null;
+  if (!user) return <Navigate to="/login" />;
+  
+  return children;
+};
+
+function App() {
+  return (
+    <Router>
+      <AuthProvider>
+        <Routes>
+          <Route path="/login" element={<Login />} />
+          
+          <Route 
+            path="/" 
+            element={
+              <ProtectedRoute>
+                <DashboardLayout />
+              </ProtectedRoute>
+            }
+          >
+            <Route index element={<Dashboard />} />
+            <Route path="employees" element={<EmployeeManagement />} />
+            <Route path="attendance" element={<Attendance />} />
+            <Route path="leaves" element={<Leaves />} />
+            <Route path="payroll" element={<Payroll />} />
+            <Route path="reports" element={<Reports />} />
+            <Route path="settings" element={<Settings />} />
+          </Route>
+        </Routes>
+      </AuthProvider>
+    </Router>
+  );
+}
+
+export default App;
