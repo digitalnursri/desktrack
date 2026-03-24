@@ -255,7 +255,7 @@ const getDailyAttendance = async (companyId, dateStr) => {
       const metrics = calculateAttendance(shift, checkIn, checkOut);
       return {
         ...existing,
-        name: emp.name,
+        name: emp.name || `${emp.first_name || ''} ${emp.last_name || ''}`.trim() || 'Unknown',
         role: emp.role,
         ...metrics,
         expectedCheckout: metrics.expectedCheckoutTime, // for frontend compatibility
@@ -290,8 +290,8 @@ const getDailyAttendance = async (companyId, dateStr) => {
     return {
       id: `dummy-${emp.id}`,
       employee_id: emp.id,
-      name: emp.name,
-      role: emp.role,
+        name: emp.name || `${emp.first_name || ''} ${emp.last_name || ''}`.trim() || 'Unknown',
+        role: emp.role,
       check_in: checkIn.toISOString(),
       check_out: checkOut.toISOString(),
       status: metrics.status,

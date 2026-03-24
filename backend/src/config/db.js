@@ -82,7 +82,7 @@ module.exports = {
     try {
       // Try real database first
       if (pool) {
-         // return await pool.query(text, params);
+        return await pool.query(text, params);
       }
       throw new Error('Using Memory DB');
     } catch (err) {

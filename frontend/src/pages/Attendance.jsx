@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Clock, Calendar as CalendarIcon, Filter, Search, Download, ChevronRight } from 'lucide-react';
+import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -65,10 +66,8 @@ const Attendance = () => {
   const fetchAttendance = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch(`/api/attendance?date=${selectedDate}`, {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('token') || 'demo-token'}` }
-      });
-      const data = await response.json();
+      const response = await api.get(`/attendance?date=${selectedDate}`);
+      const data = response.data;
       const mapped = data.map(r => ({
         ...r,
         checkIn: r.check_in && r.check_in !== '-' ? (r.check_in.includes('T') ? formatTime(r.check_in.split('T')[1].substring(0, 5)) : r.check_in) : '-',
@@ -107,14 +106,7 @@ const Attendance = () => {
         remarks: editForm.remarks
       };
 
-      await fetch(`/api/attendance/${activeRecord.id}`, {
-        method: 'PUT',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token') || 'demo-token'}`
-        },
-        body: JSON.stringify(payload)
-      });
+      await api.put(`/attendance/${activeRecord.id}`, payload);
 
       setIsEditModalOpen(false);
       setIsRemarksModalOpen(false);
@@ -125,7 +117,8 @@ const Attendance = () => {
   };
 
   const attendanceData = records.filter(record => {
-    const matchesSearch = record.name.toLowerCase().includes(searchTerm.toLowerCase());
+    const nameStr = record.name || record.displayName || '';
+    const matchesSearch = nameStr.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesFilter = filterStatus === 'All' || record.status === filterStatus || record.displayStatus === filterStatus;
     return matchesSearch && matchesFilter;
   });
