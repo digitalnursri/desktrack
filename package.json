@@ -1,0 +1,21 @@
+{
+  "name": "desktrack-saas",
+  "version": "1.0.0",
+  "description": "DeskTrack SaaS - Monolith Deployment",
+  "main": "backend/index.js",
+  "scripts": {
+    "start": "node backend/index.js",
+    "build": "npm run build:frontend && npm run install:backend",
+    "build:frontend": "cd frontend && npm install && npm run build",
+    "install:backend": "cd backend && npm install",
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:backend": "cd backend && npm start",
+    "dev:frontend": "cd frontend && npm run dev"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "concurrently": "^8.2.2"
+  }
+}

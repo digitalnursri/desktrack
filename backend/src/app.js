@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
+const path = require('path');
 const tenantMiddleware = require('./middleware/tenant');
 
 const app = express();
@@ -23,9 +24,20 @@ app.use('/api/shifts', require('./routes/shifts'));
 app.use('/api/custom-fields', require('./routes/customFields'));
 
 // Home route
-app.get('/', (req, res) => {
+app.get('/api', (req, res) => {
   res.json({ message: 'DeskTrack SaaS API is running.', tenant: req.tenant.name });
 });
+
+// Serve frontend static files in production
+if (process.env.NODE_ENV === 'production') {
+  app.use(express.static(path.join(__dirname, '../../frontend/dist')));
+
+  // Client-side routing catch-all
+  app.get('*', (req, res, next) => {
+    if (req.path.startsWith('/api')) return next();
+    res.sendFile(path.join(__dirname, '../../frontend/dist/index.html'));
+  });
+}
 
 // Centralized error handling
 app.use((err, req, res, next) => {
