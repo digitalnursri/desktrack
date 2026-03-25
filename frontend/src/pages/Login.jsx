@@ -15,7 +15,7 @@ const Login = () => {
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
-  const hasGoogleId = !!import.meta.env.VITE_GOOGLE_CLIENT_ID || true; // Force true for now with the hardcoded fallback
+  const hasGoogleId = !!import.meta.env.VITE_GOOGLE_CLIENT_ID;
 
   const handleEmailLogin = async (e) => {
     e.preventDefault();
