@@ -15,6 +15,7 @@ const Login = () => {
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const hasGoogleId = !!import.meta.env.VITE_GOOGLE_CLIENT_ID;
 
   const handleEmailLogin = async (e) => {
     e.preventDefault();
@@ -88,17 +89,24 @@ const Login = () => {
             {/* Google Sign-In */}
             <div className="flex flex-col items-center gap-3">
               <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">Sign in with your organization account</p>
-              <div className="w-full flex justify-center" style={{ colorScheme: 'normal' }}>
-                <GoogleLogin
-                  onSuccess={handleGoogleSuccess}
-                  onError={handleGoogleError}
-                  theme="filled_blue"
-                  size="large"
-                  width="380"
-                  text="signin_with"
-                  shape="rectangular"
-                  logo_alignment="left"
-                />
+              <div className="w-full flex flex-col items-center justify-center min-h-[44px]">
+                {hasGoogleId ? (
+                  <GoogleLogin
+                    onSuccess={handleGoogleSuccess}
+                    onError={handleGoogleError}
+                    theme="filled_blue"
+                    size="large"
+                    width="380"
+                    text="signin_with"
+                    shape="rectangular"
+                    logo_alignment="left"
+                  />
+                ) : (
+                  <div className="text-center p-3 bg-slate-800/80 border border-slate-700 rounded-xl w-full">
+                    <p className="text-[10px] text-slate-400 uppercase tracking-tighter mb-1 font-bold">Configuration Required</p>
+                    <p className="text-[11px] text-primary-400 font-medium">Please set VITE_GOOGLE_CLIENT_ID in Railway</p>
+                  </div>
+                )}
               </div>
               <p className="text-xs text-slate-600 mt-1">
                 Only authorized domains can access DeskTrack
