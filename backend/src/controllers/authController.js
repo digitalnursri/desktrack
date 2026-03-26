@@ -123,12 +123,16 @@ const googleLogin = async (req, res) => {
       const employeeCode = 'EMP-' + String(userId).padStart(3, '0');
 
       // Also create an employee record so they appear in the employee list
-      // Consistent with employeeController: company_id, first_name, last_name, employee_code, designation_id, department_id, salary_info, joining_date, email, shift_id, role, status
-      await query(
-        `INSERT INTO employees (company_id, first_name, last_name, employee_code, designation_id, department_id, salary_info, joining_date, email, shift_id, role, status)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
-        [companyId, firstName, lastName, employeeCode, 1, 1, '{}', new Date().toISOString().split('T')[0], email, 1, initialRole, 'ACTIVE']
-      );
+      try {
+        await query(
+          `INSERT INTO employees (company_id, first_name, last_name, employee_code, email, role, status, joining_date)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+          [companyId, firstName, lastName, employeeCode, email, initialRole, 'ACTIVE', new Date().toISOString().split('T')[0]]
+        );
+        console.log('Auto-created employee record for:', email);
+      } catch (empErr) {
+        console.error('Failed to auto-create employee (non-fatal):', empErr.message);
+      }
 
       user = {
         id: userId,

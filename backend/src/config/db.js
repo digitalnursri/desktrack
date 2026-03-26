@@ -560,6 +560,27 @@ async function runMigrations() {
         await pool.query("INSERT INTO allowed_domains (domain, company_id) VALUES ('creativefrenzy.in', 1) ON CONFLICT DO NOTHING");
         console.log('--- DB: Seeded initial company and domain data ---');
       }
+
+      // Repair: Create employee records for any users that don't have one
+      const orphanUsers = await pool.query(
+        `SELECT u.id, u.email, u.role, u.company_id 
+         FROM users u 
+         LEFT JOIN employees e ON u.email = e.email AND u.company_id = e.company_id
+         WHERE e.id IS NULL`
+      );
+      for (const user of orphanUsers.rows) {
+        const namePart = user.email.split('@')[0];
+        const parts = namePart.split(/[._-]/);
+        const firstName = parts[0] || namePart;
+        const lastName = parts.slice(1).join(' ') || '';
+        const empCode = 'EMP-' + String(user.id).padStart(3, '0');
+        await pool.query(
+          `INSERT INTO employees (company_id, first_name, last_name, employee_code, email, role, status, joining_date)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+          [user.company_id, firstName, lastName, empCode, user.email, user.role, 'ACTIVE', new Date().toISOString().split('T')[0]]
+        );
+        console.log('--- DB: Repaired missing employee for:', user.email, '---');
+      }
       
       console.log('--- DB: PostgreSQL Migrations Complete ---');
     } catch (err) {
