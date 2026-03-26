@@ -41,6 +41,7 @@ app.use('/api/custom-fields', require('./routes/customFields'));
 app.use('/api/performance', require('./routes/performanceRoutes'));
 app.use('/api/settings', require('./routes/settings'));
 app.use('/api/health', require('./routes/health'));
+app.use('/api/config', require('./routes/config'));
 
 // Home route
 app.get('/api', (req, res) => {

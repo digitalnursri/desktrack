@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { GoogleLogin } from '@react-oauth/google';
@@ -35,7 +35,21 @@ const Login = () => {
   const { googleLogin } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
-  const hasGoogleId = !!import.meta.env.VITE_GOOGLE_CLIENT_ID;
+  const [hasGoogleId, setHasGoogleId] = useState(!!import.meta.env.VITE_GOOGLE_CLIENT_ID);
+
+  // If we don't have it from build-time, fetch from backend
+  useEffect(() => {
+    if (!hasGoogleId) {
+      fetch('/api/config')
+        .then(res => res.json())
+        .then(data => {
+          if (data.googleClientId) {
+            setHasGoogleId(true);
+          }
+        })
+        .catch(() => {});
+    }
+  }, []);
 
   const handleGoogleSuccess = async (credentialResponse) => {
     setIsLoading(true);
