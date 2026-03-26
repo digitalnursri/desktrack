@@ -332,6 +332,29 @@ const db = {
           rowCount = 1;
         }
       }
+      // Allowed Domains
+      else if (queryText.includes('insert into allowed_domains')) {
+        const newDomain = {
+          id: memoryDB.allowed_domains.length > 0 ? Math.max(...memoryDB.allowed_domains.map(d => d.id)) + 1 : 1,
+          domain: params[0],
+          company_id: params[1],
+          created_at: new Date()
+        };
+        memoryDB.allowed_domains.push(newDomain);
+        saveToDisk();
+        resultRows = [newDomain];
+        rowCount = 1;
+      }
+      else if (queryText.includes('delete from allowed_domains')) {
+        const id = parseInt(params[0]);
+        const domainToDelete = memoryDB.allowed_domains.find(d => d.id === id);
+        if (domainToDelete) {
+          memoryDB.allowed_domains = memoryDB.allowed_domains.filter(d => d.id !== id);
+          saveToDisk();
+          resultRows = [domainToDelete];
+          rowCount = 1;
+        }
+      }
 
       // --- 2. READ Operations (Match these second) ---
 

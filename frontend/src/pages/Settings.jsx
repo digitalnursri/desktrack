@@ -21,6 +21,11 @@ const Settings = () => {
   const [customFields, setCustomFields] = useState([]);
   const [loadingFields, setLoadingFields] = useState(false);
 
+  // Domains Data
+  const [domains, setDomains] = useState([]);
+  const [newDomain, setNewDomain] = useState('');
+  const [loadingDomains, setLoadingDomains] = useState(false);
+
   useEffect(() => {
     const fetchFields = async () => {
       setLoadingFields(true);
@@ -35,6 +40,49 @@ const Settings = () => {
     };
     fetchFields();
   }, []);
+
+  useEffect(() => {
+    if (activeTab === 'authentication') {
+      fetchDomains();
+    }
+  }, [activeTab]);
+
+  const fetchDomains = async () => {
+    setLoadingDomains(true);
+    try {
+      const response = await api.get('/settings/domains');
+      setDomains(response.data);
+    } catch (err) {
+      console.error('Error fetching domains:', err);
+    } finally {
+      setLoadingDomains(false);
+    }
+  };
+
+  const handleAddDomain = async (e) => {
+    e.preventDefault();
+    if (!newDomain) return;
+    try {
+      await api.post('/settings/domains', { domain: newDomain });
+      setNewDomain('');
+      fetchDomains();
+    } catch (err) {
+      console.error('Error adding domain:', err);
+      alert(err.response?.data?.error || 'Failed to add domain');
+    }
+  };
+
+  const handleDeleteDomain = async (id) => {
+    if (window.confirm('Are you sure you want to remove this domain?')) {
+      try {
+        await api.delete(`/settings/domains/${id}`);
+        fetchDomains();
+      } catch (err) {
+        console.error('Error deleting domain:', err);
+        alert('Failed to remove domain');
+      }
+    }
+  };
 
   const [formData, setFormData] = useState({
     moduleName: 'Employees', fieldName: '', fieldType: 'text', isRequired: false, options: ''
@@ -176,6 +224,13 @@ const Settings = () => {
           >
             <Clock size={18} />
             <span>Shift Management</span>
+          </button>
+          <button 
+            onClick={() => setActiveTab('authentication')}
+            className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-colors font-medium ${activeTab === 'authentication' ? 'bg-primary-50 text-primary-700 font-bold' : 'text-slate-600 hover:bg-slate-50'}`}
+          >
+            <Shield size={18} />
+            <span>Authentication</span>
           </button>
         </div>
 
@@ -394,6 +449,82 @@ const Settings = () => {
                     ))}
                   </tbody>
                 </table>
+              </div>
+            </Card>
+          )}
+
+          {activeTab === 'authentication' && (
+            <Card className="shadow-premium" noPadding>
+              <div className="p-6 border-b border-slate-100">
+                <h3 className="text-lg font-bold text-slate-900 font-display">Domain Approval</h3>
+                <p className="text-sm text-slate-500">Manage corporate domains authorized to use Google OAuth.</p>
+              </div>
+              
+              <div className="p-6 border-b border-slate-100 bg-slate-50/50">
+                <form onSubmit={handleAddDomain} className="flex gap-3">
+                  <div className="flex-1">
+                    <Input 
+                      placeholder="e.g. creativefrenzy.in"
+                      value={newDomain}
+                      onChange={e => setNewDomain(e.target.value)}
+                    />
+                  </div>
+                  <Button type="submit" className="gap-2">
+                    <Plus size={16} /> Authorize Domain
+                  </Button>
+                </form>
+              </div>
+
+              <div className="w-full overflow-x-auto">
+                <table className="w-full text-left whitespace-nowrap">
+                  <thead className="bg-slate-50/50 uppercase text-xs font-bold text-slate-500 tracking-wider">
+                    <tr>
+                      <th className="px-6 py-4 border-b border-slate-100">Domain Name</th>
+                      <th className="px-6 py-4 border-b border-slate-100">Status</th>
+                      <th className="px-6 py-4 border-b border-slate-100 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {domains.map((d) => (
+                      <tr key={d.id} className="hover:bg-slate-50 transition-colors">
+                        <td className="px-6 py-4 font-bold text-slate-800 text-sm">{d.domain}</td>
+                        <td className="px-6 py-4">
+                          <Badge variant="success">Authorized</Badge>
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          <button 
+                            onClick={(e) => { e.stopPropagation(); handleDeleteDomain(d.id); }}
+                            className="p-1.5 text-slate-400 hover:text-alert-600 hover:bg-alert-50 rounded-lg transition-colors"
+                            title="Remove Domain"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {domains.length === 0 && !loadingDomains && (
+                  <div className="p-8 text-center text-slate-500 italic">No domains authorized yet. Click the button above to add your first domain.</div>
+                )}
+                {loadingDomains && (
+                  <div className="p-8 text-center text-slate-400">Loading domains...</div>
+                )}
+              </div>
+
+              <div className="p-6 bg-amber-50 rounded-b-xl border-t border-amber-100">
+                <div className="flex gap-3">
+                  <div className="p-2 bg-amber-100 text-amber-600 rounded-lg h-fit">
+                    <Shield size={20} />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-bold text-amber-900">Security Note</h4>
+                    <p className="text-xs text-amber-700 mt-1 leading-relaxed">
+                      Whitelisting a domain allows anyone with a verified Google account on that domain to log into your DeskTrack instance. 
+                      Only add domains that your organization fully controls.
+                    </p>
+                  </div>
+                </div>
               </div>
             </Card>
           )}

@@ -33,6 +33,7 @@ app.use('/api/attendance', require('./routes/attendance'));
 app.use('/api/shifts', require('./routes/shifts'));
 app.use('/api/custom-fields', require('./routes/customFields'));
 app.use('/api/performance', require('./routes/performanceRoutes'));
+app.use('/api/settings', require('./routes/settings'));
 
 // Home route
 app.get('/api', (req, res) => {
