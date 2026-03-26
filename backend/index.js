@@ -1,3 +1,4 @@
+// Triggering fresh build to pick up new env variables
 require('dotenv').config();
 const app = require('./src/app');
 const { pool } = require('./src/config/db');
