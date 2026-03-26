@@ -10,13 +10,17 @@ api.interceptors.request.use((config) => {
   const hostname = window.location.hostname;
   const parts = hostname.split('.');
   
+  let tenantSlug = null;
   // If subdomain exists (e.g., company1.localhost), use it
   if (parts.length > 2 || (parts.length === 2 && parts[1] === 'localhost')) {
-    config.headers['x-tenant-slug'] = parts[0];
+    tenantSlug = parts[0];
   } else {
     // Fallback for development: use localStorage or default
-    config.headers['x-tenant-slug'] = localStorage.getItem('tenantSlug') || 'default-tenant';
+    tenantSlug = localStorage.getItem('tenantSlug') || 'default-tenant';
   }
+
+  config.headers['x-tenant-slug'] = tenantSlug;
+  console.log(`[API Request] ${config.method.toUpperCase()} ${config.url} | Tenant: ${tenantSlug}`);
 
   // 2. Add JWT token if available
   const token = localStorage.getItem('token');

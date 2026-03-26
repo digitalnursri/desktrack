@@ -306,15 +306,40 @@ const getDailyAttendance = async (companyId, dateStr) => {
 };
 
 const getStats = async (companyId, dateStr) => {
-  const employees = await query('SELECT * FROM employees WHERE company_id = $1', [companyId]);
-  const attendance = await query('SELECT * FROM attendance WHERE company_id = $1 AND check_in LIKE $2', [companyId, `${dateStr}%`]);
+  // Use getDailyAttendance to ensure stats match the simulated/real data shown in tables
+  const attendanceRecords = await getDailyAttendance(companyId, dateStr);
   
-  const totalEmployees = employees.rows.length;
-  const presentCount = attendance.rows.filter(a => a.status !== 'Absent' && a.status !== 'Leave' && a.check_in).length;
-  const lateCount = attendance.rows.filter(a => a.status === 'Late' || a.status === 'Over_Late').length;
+  // DEBUG DUMP
+  try {
+    const fs = require('fs');
+    fs.writeFileSync('C:/Users/creat/Downloads/DeskTrack/backend/stats_debug.json', JSON.stringify({ dateStr, companyId, attendanceRecords }, null, 2));
+  } catch (e) {}
+
+  const totalEmployees = attendanceRecords.length;
   
-  // Mock productivity for now as it needs more logic
+  // Count as present if they have ANY check-in time (even if status is weird)
+  const presentCount = attendanceRecords.filter(a => {
+    const checkIn = a.check_in || '';
+    const status = (a.status || '').toUpperCase().replace(/_/g, ' ');
+    
+    // Non-present markers
+    if (status.includes('ABSENT') || status.includes('LEAVE')) return false;
+    
+    // If check_in is '-', they are likely absent in the simulation
+    if (checkIn === '-' || !checkIn) return false;
+    
+    return true; 
+  }).length;
+
+  // Count as late if status indicates lateness (LATE or OVER LATE)
+  const lateCount = attendanceRecords.filter(a => {
+    const status = (a.status || '').toUpperCase().replace(/_/g, ' ');
+    return status.includes('LATE');
+  }).length;
+
   const productivity = totalEmployees > 0 ? Math.round((presentCount / totalEmployees) * 100) : 0;
+
+  console.log(`[Stats Debug] Final Result: Total=${totalEmployees}, Present=${presentCount}, Late=${lateCount}`);
 
   return {
     totalEmployees,

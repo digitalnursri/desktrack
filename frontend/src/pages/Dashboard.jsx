@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { Users, Clock, CheckCircle, TrendingUp, MoreVertical, Calendar as CalendarIcon, ChevronRight } from 'lucide-react';
 import { Card } from '../components/ui/Card';
@@ -9,24 +10,22 @@ import { motion } from 'framer-motion';
 
 const Dashboard = () => {
   const navigate = useNavigate();
-  const { isCheckedIn, toggleCheckIn, selectedDate, setSelectedDate } = useAuth();
+  // Fetch real data from backend
+  const { user, isCheckedIn, toggleCheckIn, selectedDate, setSelectedDate } = useAuth();
+  
   const [selectedKPI, setSelectedKPI] = useState(null);
   const [stats, setStats] = useState([]);
   const [dummyDetails, setDummyDetails] = useState({});
   const [recentActivity, setRecentActivity] = useState([]);
   const [productivityData, setProductivityData] = useState([0, 0, 0, 0, 0, 0, 0]);
 
-  // Fetch real data from backend
   useEffect(() => {
     const fetchData = async () => {
+      if (!user) return; // Guard against missing user context
       try {
-        const token = localStorage.getItem('token') || 'demo-token';
-        
-        // Fetch Stats
-        const statsRes = await fetch(`/api/attendance/stats?date=${selectedDate}`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        const statsData = await statsRes.json() || {};
+        // Fetch Stats using the centralized api service
+        const statsRes = await api.get(`/attendance/stats?date=${selectedDate}`);
+        const statsData = statsRes.data || {};
         
         setStats([
           { label: 'Total Employees', value: (statsData.totalEmployees ?? 0).toString(), icon: Users, color: 'text-primary-600', bg: 'bg-primary-100', trend: 'From database' },
@@ -36,12 +35,11 @@ const Dashboard = () => {
         ]);
 
         // Fetch Recent Activity (today's attendance)
-        const attendanceRes = await fetch(`/api/attendance?date=${selectedDate}`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        const attendanceData = await attendanceRes.json();
+        const attendanceRes = await api.get(`/attendance?date=${selectedDate}`);
+        const attendanceData = attendanceRes.data;
         
-        const active = attendanceData
+        // Defensive check: Ensure attendanceData is an array before filtering
+        const active = Array.isArray(attendanceData) ? attendanceData
           .filter(a => a.status !== 'Absent' && a.check_in)
           .map(a => ({
             name: a.name,
@@ -49,17 +47,17 @@ const Dashboard = () => {
             status: a.status.replace('_', ' '),
             role: 'Employee',
             variant: a.status === 'Present' ? 'success' : 'warning'
-          }));
+          })) : [];
         
         setRecentActivity(active.slice(0, 5));
         
         // Reset productivity chart until historical data is available
         setProductivityData([0, 0, 0, 0, 0, 0, 0]);
-
+ 
         setDummyDetails({
           'Total Employees': [
             { col1: 'Name', col2: 'Role', col3: 'Status' },
-            ...attendanceData.map(e => ({ v1: e.name, v2: 'Employee', v3: 'Active', badge: 'success' }))
+            ...(Array.isArray(attendanceData) ? attendanceData.map(e => ({ v1: e.name, v2: 'Employee', v3: 'Active', badge: 'success' })) : [])
           ],
           'Present Today': [
             { col1: 'Name', col2: 'Check-in Time', col3: 'Status' },
@@ -77,7 +75,7 @@ const Dashboard = () => {
     };
 
     fetchData();
-  }, [selectedDate, isCheckedIn]);
+  }, [selectedDate, isCheckedIn, user]);
 
   const handleCheckInOut = () => {
     toggleCheckIn();

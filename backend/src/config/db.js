@@ -360,16 +360,21 @@ const db = {
 
       // Attendance
       else if (queryText.includes('from attendance')) {
-        let result = memoryDB.attendance;
+        let result = memoryDB.attendance || [];
         if (params.length > 0 && queryText.includes('company_id =')) {
           result = result.filter(a => a.company_id == params[0]);
         }
-        if (params.length > 1 && queryText.includes('check_in like')) {
-          const pattern = params[1].replace(/%/g, '');
-          result = result.filter(a => a.check_in && String(a.check_in).includes(pattern));
+        if (params.length > 0 && queryText.includes('check_in like')) {
+          const pattern = params[params.length - 1].replace(/%/g, '');
+          result = result.filter(a => {
+            const checkInStr = a.check_in instanceof Date ? a.check_in.toISOString() : String(a.check_in);
+            return checkInStr.startsWith(pattern);
+          });
         }
         if (params.length > 0 && (queryText.includes('a.id =') || queryText.includes('where id ='))) {
-          result = result.filter(a => a.id == params[0]);
+          // This matches specific record lookups
+          const idParam = params[0];
+          result = result.filter(a => a.id == idParam);
         }
         resultRows = result;
         rowCount = result.length;

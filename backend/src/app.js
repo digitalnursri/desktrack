@@ -18,8 +18,14 @@ app.use(helmet({
       "img-src": ["'self'", "data:", "https://lh3.googleusercontent.com"],
     },
   },
+  crossOriginOpenerPolicy: false,
+  crossOriginResourcePolicy: { policy: "cross-origin" },
 }));
-app.use(cors());
+app.use(cors({
+  origin: true,
+  credentials: true,
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-tenant-slug', 'x-tenant-id']
+}));
 app.use(morgan('dev'));
 app.use(express.json());
 

@@ -16,9 +16,28 @@ const tenantMiddleware = async (req, res, next) => {
       return next();
     }
 
-    const slug = req.headers['x-tenant-slug'] || req.headers['x-tenant-id'];
+    let slug = req.headers['x-tenant-slug'] || req.headers['x-tenant-id'];
     
-    // Fallback: Check subdomain if host is available
+    // Fallback 1: Extract from JWT if header is missing
+    if (!slug && req.headers.authorization) {
+      try {
+        const authHeader = req.headers.authorization;
+        const token = authHeader.startsWith('Bearer ') ? authHeader.split(' ')[1] : authHeader;
+
+        if (token && token !== 'undefined' && token !== 'null' && token !== 'demo-token') {
+          const jwt = require('jsonwebtoken');
+          const decoded = jwt.decode(token);
+          if (decoded && (decoded.companyId || decoded.tenantId)) {
+            slug = String(decoded.companyId || decoded.tenantId);
+            console.log(`[Tenant] Fallback to JWT companyId: ${slug}`);
+          }
+        }
+      } catch (e) {
+        console.warn('Failed to extract tenant from token:', e.message);
+      }
+    }
+
+    // Fallback 2: Check subdomain if host is available
     let subdomainMatch = null;
     if (!slug && req.headers.host) {
       const parts = req.headers.host.split('.');

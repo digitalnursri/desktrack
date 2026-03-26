@@ -10,7 +10,9 @@ export const AuthProvider = ({ children }) => {
     return localStorage.getItem('isCheckedIn') === 'true';
   });
   const [selectedDate, setSelectedDate] = useState(() => {
-    return localStorage.getItem('selectedDate') || new Date().toISOString().split('T')[0];
+    // Use local date instead of UTC to avoid date shifting (especially late at night)
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   });
   const [shifts, setShifts] = useState([]);
   const [enabledModules, setEnabledModules] = useState(() => {
@@ -77,6 +79,13 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  /*
+   * Bug Fixes / Tasks:
+   * - [x] Implement Google Domain Approval system and premium settings UI
+   * - [/] Fix Google Login hang (COOP header)
+   * - [/] Fix Dashboard stale date and crash protection
+   * - [ ] Verify both fixes in browser
+   */
   const googleLogin = async (credential) => {
     try {
       const response = await api.post('/auth/google', { credential });
