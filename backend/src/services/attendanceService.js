@@ -10,40 +10,39 @@ const { query } = require('../config/db');
  */
 const calculateAttendance = (shift, checkIn, checkOut) => {
   const getShiftDate = (timeString) => {
-    if (!timeString) return new Date(checkIn); // Fallback
+    if (!timeString) return new Date(checkIn);
     const d = new Date(checkIn);
-    if (!timeString || !timeString.includes(':')) return d; 
     const [h, m] = timeString.split(':').map(Number);
     d.setHours(h, m, 0, 0);
-    
-    // Simplistic handling for night shift wrap-around
-    const startH = parseInt(shift.shift_start_time.split(':')[0], 10);
-    if (startH >= 12 && h < 12) d.setDate(d.getDate() + 1);
-    
     return d;
   };
 
   const shiftStart = getShiftDate(shift.shift_start_time);
   const graceEnd = new Date(shiftStart.getTime() + ((shift.grace_minutes || 0) * 60000));
-  
-  const lateStart = getShiftDate(shift.late_start_time);
-  const lateEnd = getShiftDate(shift.late_end_time);
-  const overlateStart = getShiftDate(shift.overlate_start_time);
-  const halfdayStart = getShiftDate(shift.halfday_start_time);
+  const lateStart = shift.late_start_time ? getShiftDate(shift.late_start_time) : graceEnd;
+  const lateEnd = shift.late_end_time ? getShiftDate(shift.late_end_time) : null;
+  const overlateStart = shift.overlate_start_time ? getShiftDate(shift.overlate_start_time) : null;
+  const halfdayStart = shift.halfday_start_time ? getShiftDate(shift.halfday_start_time) : null;
 
   let status = 'ON_TIME';
   
-  // Priority logic exactly as requested: HALF-DAY > OVER-LATE > LATE > ON-TIME
-  if (checkIn >= halfdayStart) {
+  // SEQUENTIAL CHECK: Most severe first
+  if (halfdayStart && checkIn >= halfdayStart) {
     status = 'HALF_DAY';
-  } else if (checkIn >= overlateStart) {
+  } else if (overlateStart && checkIn >= overlateStart) {
     status = 'OVER_LATE';
-  } else if (checkIn >= lateStart && checkIn <= lateEnd) {
-    status = 'LATE';
+  } else if (lateStart && checkIn >= lateStart) {
+    // Check if within late window if defined
+    if (!lateEnd || checkIn <= lateEnd) {
+      status = 'LATE';
+    } else {
+      // If past lateEnd but before overlate (logic gap), fall through or mark LATE
+      status = 'LATE';
+    }
   } else if (checkIn <= graceEnd) {
     status = 'ON_TIME';
   } else {
-    // If checkIn falls between graceEnd and lateStart (shouldn't happen with tight rules)
+    // Default to LATE if past grace but before other markers
     status = 'LATE';
   }
 
@@ -65,13 +64,18 @@ const calculateAttendance = (shift, checkIn, checkOut) => {
       if (shortfallMinutes < 0) shortfallMinutes = 0;
     }
 
-    // Enforce dynamic minimum working hours for HALF_DAY checkout overrides
-    const minWorkingHoursForFullDay = shift.total_working_hours / 2; // e.g. must work at least 4.5 out of 9 hours
+    // Force HALF_DAY if worked less than 50% of the shift
+    const minWorkingHoursForFullDay = (shift.total_working_hours || 9) / 2;
     if (workingHours > 0 && workingHours < minWorkingHoursForFullDay) {
       status = 'HALF_DAY';
-    } else if (workingHours === 0) {
+    } else if (workingHours <= 0) {
       status = 'ABSENT';
     }
+  }
+
+  // DEBUG Logging for Production
+  if (checkIn.getDate() === new Date().getDate()) {
+    console.log(`[Attendance] Calculating for ${checkIn.toISOString()}: Start=${shiftStart.toLocaleTimeString()}, GraceEnd=${graceEnd.toLocaleTimeString()}, LateStart=${lateStart?.toLocaleTimeString()}, HalfDayStart=${halfdayStart?.toLocaleTimeString()} -> Status: ${status}`);
   }
 
   return { 

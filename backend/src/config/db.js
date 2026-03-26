@@ -17,6 +17,15 @@ const poolProps = process.env.DATABASE_URL
 
 const pool = process.env.NODE_ENV === 'test' ? null : new Pool(poolProps);
 
+if (pool) {
+  pool.on('connect', (client) => {
+    client.query("SET TIME ZONE 'Asia/Kolkata'");
+  });
+  pool.on('error', (err) => {
+    console.error('Unexpected error on idle client', err);
+  });
+}
+
 // In-memory store for demo mode
 const memoryDB = {
   shifts: [
@@ -607,6 +616,14 @@ async function runMigrations() {
         await pool.query(`INSERT INTO shifts (id, company_id, name, shift_start_time, shift_end_time, total_working_hours, grace_minutes, late_start_time, late_end_time, overlate_start_time, halfday_start_time) 
           VALUES (1, 1, 'General Shift', '10:00:00', '19:00:00', 9.0, 15, '10:16:00', '10:59:00', '11:00:00', '12:30:00') ON CONFLICT DO NOTHING`);
       }
+
+      // REPAIR: Ensure all existing shifts have correct late markers (grace logic)
+      await pool.query(`
+        UPDATE shifts 
+        SET late_start_time = (shift_start_time::time + (grace_minutes || ' minutes')::interval)::time 
+        WHERE late_start_time <= shift_start_time
+      `);
+      console.log('--- DB: Repaired shift thresholds for grace period accuracy ---');
 
       // Repair: Create employee records and assignments for any users that don't have them
       const orphanUsers = await pool.query(
