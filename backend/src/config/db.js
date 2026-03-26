@@ -498,6 +498,20 @@ async function runMigrations() {
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
 
+        CREATE TABLE IF NOT EXISTS departments (
+          id SERIAL PRIMARY KEY,
+          company_id INTEGER NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+          name VARCHAR(255) NOT NULL,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE TABLE IF NOT EXISTS designations (
+          id SERIAL PRIMARY KEY,
+          company_id INTEGER NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+          name VARCHAR(255) NOT NULL,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+
         CREATE TABLE IF NOT EXISTS shifts (
           id SERIAL PRIMARY KEY,
           company_id INTEGER NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
@@ -529,11 +543,11 @@ async function runMigrations() {
           last_name VARCHAR(100),
           email VARCHAR(255),
           employee_code VARCHAR(100) NOT NULL,
-          designation_id INTEGER,
-          department_id INTEGER,
+          designation_id INTEGER REFERENCES designations(id) ON DELETE SET NULL,
+          department_id INTEGER REFERENCES departments(id) ON DELETE SET NULL,
           salary_info JSONB DEFAULT '{}',
           joining_date DATE,
-          shift_id INTEGER REFERENCES shifts(id),
+          shift_id INTEGER REFERENCES shifts(id) ON DELETE SET NULL,
           role VARCHAR(50) DEFAULT 'EMPLOYEE',
           status VARCHAR(20) DEFAULT 'ACTIVE',
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -561,6 +575,22 @@ async function runMigrations() {
         console.log('--- DB: Seeded initial company and domain data ---');
       }
 
+      // Seed initial Departments if they don't exist
+      const deptCount = await pool.query('SELECT COUNT(*) FROM departments');
+      if (parseInt(deptCount.rows[0].count) === 0) {
+        await pool.query("INSERT INTO departments (id, name, company_id) VALUES (1, 'Administration', 1) ON CONFLICT DO NOTHING");
+        await pool.query("INSERT INTO departments (id, name, company_id) VALUES (2, 'Engineering', 1) ON CONFLICT DO NOTHING");
+        await pool.query("INSERT INTO departments (id, name, company_id) VALUES (3, 'HR', 1) ON CONFLICT DO NOTHING");
+      }
+
+      // Seed initial Designations if they don't exist
+      const desCount = await pool.query('SELECT COUNT(*) FROM designations');
+      if (parseInt(desCount.rows[0].count) === 0) {
+        await pool.query("INSERT INTO designations (id, name, company_id) VALUES (1, 'Director', 1) ON CONFLICT DO NOTHING");
+        await pool.query("INSERT INTO designations (id, name, company_id) VALUES (2, 'Lead Engineer', 1) ON CONFLICT DO NOTHING");
+        await pool.query("INSERT INTO designations (id, name, company_id) VALUES (3, 'Developer', 1) ON CONFLICT DO NOTHING");
+      }
+
       // Repair: Create employee records for any users that don't have one
       const orphanUsers = await pool.query(
         `SELECT u.id, u.email, u.role, u.company_id 
@@ -575,9 +605,9 @@ async function runMigrations() {
         const lastName = parts.slice(1).join(' ') || '';
         const empCode = 'EMP-' + String(user.id).padStart(3, '0');
         await pool.query(
-          `INSERT INTO employees (company_id, first_name, last_name, employee_code, email, role, status, joining_date)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-          [user.company_id, firstName, lastName, empCode, user.email, user.role, 'ACTIVE', new Date().toISOString().split('T')[0]]
+          `INSERT INTO employees (company_id, first_name, last_name, employee_code, email, role, status, joining_date, department_id, designation_id)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+          [user.company_id, firstName, lastName, empCode, user.email, user.role, 'ACTIVE', new Date().toISOString().split('T')[0], 1, 1]
         );
         console.log('--- DB: Repaired missing employee for:', user.email, '---');
       }

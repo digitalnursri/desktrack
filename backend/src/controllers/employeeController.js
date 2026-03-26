@@ -23,27 +23,15 @@ const createEmployee = async (req, res) => {
   const { 
     first_name, last_name, email, employee_code, designation_id, department_id, salary_info, joining_date, shift_id, role, status 
   } = req.body;
-  console.log('Create Employee Body:', req.body);
 
   try {
-    // 1. Create Employee (Using dynamic query for Mock DB to preserve all fields)
     const result = await query(
-      `INSERT INTO employees_dynamic (all_data) VALUES ($1) RETURNING *`,
-      [{ ...req.body, company_id: companyId }]
+      `INSERT INTO employees (company_id, first_name, last_name, email, employee_code, designation_id, department_id, salary_info, joining_date, shift_id, role, status)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *`,
+      [companyId, first_name, last_name, email, employee_code, designation_id, department_id, salary_info || '{}', joining_date, shift_id, role || 'EMPLOYEE', status || 'ACTIVE']
     );
     
-    const employee = result.rows[0];
-
-    // 2. Assign Shift if provided
-    if (shift_id) {
-      await query(
-        `INSERT INTO employee_shifts (employee_id, shift_id, company_id, effective_from)
-         VALUES ($1, $2, $3, CURRENT_DATE)`,
-        [employee.id, shift_id, companyId]
-      );
-    }
-
-    res.status(201).json(employee);
+    res.status(201).json(result.rows[0]);
   } catch (err) {
     console.error('Create Employee Error:', err);
     res.status(500).json({ error: 'Server error creating employee.' });
@@ -56,8 +44,11 @@ const getEmployeeById = async (req, res) => {
 
   try {
     const result = await query(
-      `SELECT e.*, d.name as department_name FROM employees e 
+      `SELECT e.*, d.name as department_name, des.name as designation_name, s.name as shift_name 
+       FROM employees e 
        LEFT JOIN departments d ON e.department_id = d.id 
+       LEFT JOIN designations des ON e.designation_id = des.id
+       LEFT JOIN shifts s ON e.shift_id = s.id
        WHERE e.id = $1 AND e.company_id = $2`,
       [id, companyId]
     );
@@ -80,8 +71,12 @@ const updateEmployee = async (req, res) => {
 
   try {
     const result = await query(
-      `UPDATE employees_dynamic SET data = $1 WHERE id = $2 AND company_id = $3 RETURNING *`,
-      [req.body, id, companyId]
+      `UPDATE employees SET 
+        first_name = $1, last_name = $2, email = $3, employee_code = $4, 
+        designation_id = $5, department_id = $6, salary_info = $7, 
+        joining_date = $8, shift_id = $9, status = $10, role = $11
+       WHERE id = $12 AND company_id = $13 RETURNING *`,
+      [first_name, last_name, email, employee_code, designation_id, department_id, salary_info || '{}', joining_date, shift_id, status, role, id, companyId]
     );
 
     if (result.rows.length === 0) {
@@ -100,6 +95,9 @@ const deleteEmployee = async (req, res) => {
   const { id } = req.params;
 
   try {
+    // Delete attendance records first due to possible constraint issues even with cascade
+    await query('DELETE FROM attendance WHERE employee_id = $1 AND company_id = $2', [id, companyId]);
+
     const result = await query(
       'DELETE FROM employees WHERE id = $1 AND company_id = $2 RETURNING *',
       [id, companyId]

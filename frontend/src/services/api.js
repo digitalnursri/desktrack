@@ -10,13 +10,26 @@ api.interceptors.request.use((config) => {
   const hostname = window.location.hostname;
   const parts = hostname.split('.');
   
-  let tenantSlug = null;
-  // If subdomain exists (e.g., company1.localhost), use it
-  if (parts.length > 2 || (parts.length === 2 && parts[1] === 'localhost')) {
-    tenantSlug = parts[0];
-  } else {
-    // Fallback for development: use localStorage or default
-    tenantSlug = localStorage.getItem('tenantSlug') || 'default-tenant';
+  let tenantSlug = localStorage.getItem('tenantSlug');
+  
+  if (!tenantSlug) {
+    const hostname = window.location.hostname;
+    const parts = hostname.split('.');
+    
+    // If subdomain exists (e.g., company1.localhost), use it
+    if (parts.length > 2 || (parts.length === 2 && parts[1] === 'localhost')) {
+      // In production (desktrack-production.up.railway.app), parts[0] is 'desktrack-production'
+      // which is likely NOT the tenant slug 'creativefrenzy'.
+      // So we only use subdomain if it's NOT the base project name.
+      if (parts[0] !== 'desktrack-production') {
+        tenantSlug = parts[0];
+      }
+    }
+  }
+
+  // Final fallback
+  if (!tenantSlug) {
+    tenantSlug = 'creativefrenzy'; // Default for this specific client
   }
 
   config.headers['x-tenant-slug'] = tenantSlug;
