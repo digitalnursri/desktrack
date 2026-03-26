@@ -4,7 +4,10 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+<<<<<<< HEAD
     "start": "node index.js",
+=======
+>>>>>>> parent of fe1b96f (Fix: Corrected production startup path in package.json.)
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
