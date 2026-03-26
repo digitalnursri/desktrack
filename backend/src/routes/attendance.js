@@ -52,7 +52,7 @@ router.post('/check-out/:id', async (req, res) => {
     const result = await attendanceService.checkOut(
       req.params.id, 
       req.tenantId,
-      req.body.check_out_time
+      req.body ? req.body.check_out_time : null
     );
     res.json(result);
   } catch (err) {

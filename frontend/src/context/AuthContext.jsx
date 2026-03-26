@@ -171,10 +171,10 @@ export const AuthProvider = ({ children }) => {
           const statusRes = await api.get(`/attendance?date=${today}`);
           const myRecord = statusRes.data.find(r => r.email === user.email && !r.check_out && !String(r.id).startsWith('dummy-'));
           if (myRecord) {
-            await api.post(`/attendance/check-out/${myRecord.id}`);
+            await api.post(`/attendance/check-out/${myRecord.id}`, {});
           }
         } else {
-          await api.post(`/attendance/check-out/${attendanceId}`);
+          await api.post(`/attendance/check-out/${attendanceId}`, {});
         }
         
         setIsCheckedIn(false);
