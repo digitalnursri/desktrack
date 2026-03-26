@@ -40,6 +40,7 @@ app.use('/api/shifts', require('./routes/shifts'));
 app.use('/api/custom-fields', require('./routes/customFields'));
 app.use('/api/performance', require('./routes/performanceRoutes'));
 app.use('/api/settings', require('./routes/settings'));
+app.use('/api/health', require('./routes/health'));
 
 // Home route
 app.get('/api', (req, res) => {

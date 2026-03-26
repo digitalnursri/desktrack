@@ -44,9 +44,10 @@ const Login = () => {
       await googleLogin(credentialResponse.credential);
       navigate('/');
     } catch (err) {
-      const errorMessage = err?.response?.data?.message 
-        || err?.response?.data?.error 
-        || 'Google Sign-In failed. Please try again.';
+      console.error('Login Failure Detail:', err);
+      const errorMessage = err?.response?.data?.error 
+        || err?.response?.data?.message
+        || `Auth Error: ${err.message || 'Unknown failure'}`;
       setError(errorMessage);
     } finally {
       setIsLoading(false);
