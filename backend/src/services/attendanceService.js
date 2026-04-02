@@ -121,26 +121,31 @@ const calculateAttendance = (shift, checkIn, checkOut, events = [], sessions = [
   if (sessions.length > 1) {
     const sortedSessions = [...sessions].sort((a, b) => new Date(a.check_in) - new Date(b.check_in));
     for (let i = 0; i < sortedSessions.length - 1; i++) {
-      const breakStart = new Date(sortedSessions[i].check_out);
-      const breakEnd = new Date(sortedSessions[i+1].check_in);
-      
+      const prevOut = sortedSessions[i].check_out;
+      const nextIn = sortedSessions[i+1].check_in;
+      if (!prevOut || !nextIn) continue;
+
+      const breakStart = new Date(prevOut);
+      const breakEnd = new Date(nextIn);
+
       if (isNaN(breakStart.getTime()) || isNaN(breakEnd.getTime())) continue;
+
+      const diff = Math.floor((breakEnd - breakStart) / 60000);
+      // Skip negative or unreasonable breaks (> 12 hours = probably bad data)
+      if (diff <= 0 || diff > 720) continue;
 
       // Check if this gap overlaps any named break
       const overlapsNamed = windows.some(w => breakStart < w.end && breakEnd > w.start);
       if (!overlapsNamed) {
-        const diff = Math.floor((breakEnd - breakStart) / 60000);
-        if (diff > 0) {
-          otherBreakMinutes += diff;
-          breakRecords.push({
-            break_type: 'OTHER',
-            break_start: breakStart.toISOString(),
-            break_end: breakEnd.toISOString(),
-            break_minutes: diff,
-            break_sequence: breakRecords.length + 1
-          });
-          if (diff > 90) flags.push('EXCESSIVE_BREAK');
-        }
+        otherBreakMinutes += diff;
+        breakRecords.push({
+          break_type: 'OTHER',
+          break_start: breakStart.toISOString(),
+          break_end: breakEnd.toISOString(),
+          break_minutes: diff,
+          break_sequence: breakRecords.length + 1
+        });
+        if (diff > 90) flags.push('EXCESSIVE_BREAK');
       }
     }
     if (breakRecords.length > 3) flags.push('MULTIPLE_BREAKS');
@@ -151,6 +156,16 @@ const calculateAttendance = (shift, checkIn, checkOut, events = [], sessions = [
   let grossMinutes = 0;
   if (lastCheckOut) {
     grossMinutes = Math.floor((lastCheckOut - firstCheckIn) / 60000);
+  }
+  // Fallback: compute from sessions if gross is 0 but sessions exist
+  if (grossMinutes <= 0 && sessions.length > 0) {
+    grossMinutes = sessions.reduce((sum, s) => {
+      if (s.duration_minutes) return sum + (parseInt(s.duration_minutes) || 0);
+      if (s.check_in && s.check_out) {
+        return sum + Math.floor((new Date(s.check_out) - new Date(s.check_in)) / 60000);
+      }
+      return sum;
+    }, 0);
   }
 
   const netWorkMinutes = grossMinutes - totalBreakMinutes;
