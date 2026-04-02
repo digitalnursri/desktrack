@@ -598,8 +598,8 @@ const getDailyAttendance = async (companyId, dateStr) => {
   const shift = shifts.rows[0];
 
   const records = employees.rows.map((emp) => {
-    const existing = attendance.rows.find(a => a.employee_id === emp.id);
-    const empSessions = sessions.rows.filter(s => s.employee_id === emp.id);
+    const existing = attendance.rows.find(a => a.employee_id == emp.id);
+    const empSessions = sessions.rows.filter(s => s.employee_id == emp.id);
     const isCheckedIn = empSessions.some(s => s.check_out === null || s.check_out === undefined);
 
     if (existing) {

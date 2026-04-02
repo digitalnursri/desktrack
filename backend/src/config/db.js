@@ -146,6 +146,9 @@ const db = {
 
       const q = queryText;
 
+      // Helper: convert Date objects to ISO strings for consistent storage
+      const toISO = v => v instanceof Date ? v.toISOString() : v;
+
       // --- 1. WRITE OPERATIONS ---
       try {
         // [INSERT] Attendance
@@ -156,8 +159,8 @@ const db = {
             // updateAttendance dummy/manual INSERT: 18 params
             newRecord = {
               id: memoryDB.attendance.length > 0 ? Math.max(...memoryDB.attendance.map(a => a.id)) + 1 : 1,
-              company_id: params[0], employee_id: params[1], attendance_date: params[2],
-              check_in: params[3], check_out: params[4], last_check_out: params[4],
+              company_id: params[0], employee_id: params[1], attendance_date: toISO(params[2]),
+              check_in: toISO(params[3]), check_out: toISO(params[4]), last_check_out: toISO(params[4]),
               arrival_status: params[5],
               gross_minutes: params[6] || 0, total_break_minutes: params[7] || 0,
               net_work_minutes: params[8] || 0, other_break_minutes: params[9] || 0,
@@ -172,7 +175,7 @@ const db = {
             newRecord = {
               id: memoryDB.attendance.length > 0 ? Math.max(...memoryDB.attendance.map(a => a.id)) + 1 : 1,
               company_id: params[0], employee_id: params[1],
-              attendance_date: params[2], check_in: params[3],
+              attendance_date: toISO(params[2]), check_in: toISO(params[3]),
               arrival_status: params[4],
               total_break_minutes: params[5] || 0, gross_minutes: params[6] || 0,
               net_work_minutes: params[7] || 0, overtime_minutes: params[8] || 0,
@@ -201,7 +204,7 @@ const db = {
             if (index !== -1) {
               memoryDB.attendance[index] = {
                 ...memoryDB.attendance[index],
-                check_in: params[0], check_out: params[1], last_check_out: params[1],
+                check_in: toISO(params[0]), check_out: toISO(params[1]), last_check_out: toISO(params[1]),
                 gross_minutes: params[2], total_break_minutes: params[3],
                 net_work_minutes: params[4], overtime_minutes: params[5],
                 status: params[6], flags: parseJson(params[7]),
@@ -220,7 +223,7 @@ const db = {
             if (index !== -1) {
               memoryDB.attendance[index] = {
                 ...memoryDB.attendance[index],
-                check_out: params[0], last_check_out: params[0],
+                check_out: toISO(params[0]), last_check_out: toISO(params[0]),
                 gross_minutes: params[1], total_break_minutes: params[2],
                 net_work_minutes: params[3], overtime_minutes: params[4],
                 status: params[5], flags: parseJson(params[6]),
@@ -270,10 +273,10 @@ const db = {
             attendance_id: params[0],
             company_id: params[1],
             employee_id: params[2],
-            check_in: params[3],
+            check_in: toISO(params[3]),
             check_out: null,
             duration_minutes: 0,
-            created_at: new Date()
+            created_at: new Date().toISOString()
           };
           if (!memoryDB.attendance_sessions) memoryDB.attendance_sessions = [];
           memoryDB.attendance_sessions.push(newSession);
@@ -288,7 +291,7 @@ const db = {
           if (index !== -1) {
             memoryDB.attendance_sessions[index] = {
               ...memoryDB.attendance_sessions[index],
-              check_out: params[0],
+              check_out: toISO(params[0]),
               duration_minutes: params[1]
             };
             saveToDisk();
