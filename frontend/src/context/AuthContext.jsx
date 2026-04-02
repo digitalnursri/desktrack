@@ -128,13 +128,8 @@ export const AuthProvider = ({ children }) => {
     };
 
     if (user && !loading) {
-      fetchCompanySettings();
-    }
-  }, [user, loading]);
-
-  useEffect(() => {
-    if (user && !loading) {
       fetchShifts();
+      fetchCompanySettings();
     }
   }, [user, loading]);
 

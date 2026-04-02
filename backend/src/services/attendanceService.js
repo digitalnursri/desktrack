@@ -9,26 +9,14 @@ const { query } = require('../config/db');
  * Calculate attendance status based on shift, events (named breaks), and sessions (other breaks)
  */
 // Get UTC offset string for an IANA timezone (e.g. "Asia/Kolkata" → "+05:30")
-const getTzOffset = (tz) => {
-  try {
-    const now = new Date();
-    const parts = new Intl.DateTimeFormat('en-US', { timeZone: tz, timeZoneName: 'shortOffset' }).formatToParts(now);
-    const offsetPart = parts.find(p => p.type === 'timeZoneName');
-    if (offsetPart) {
-      const m = offsetPart.value.match(/GMT([+-]\d{1,2}(?::?\d{2})?)/);
-      if (m) {
-        let off = m[1];
-        // Normalize: "+5:30" → "+05:30", "+8" → "+08:00"
-        const sign = off[0];
-        const nums = off.substring(1).split(':');
-        const hr = nums[0].padStart(2, '0');
-        const mn = (nums[1] || '00').padStart(2, '0');
-        return `${sign}${hr}:${mn}`;
-      }
-    }
-  } catch (e) {}
-  return '+05:30'; // fallback IST
+const TZ_OFFSETS = {
+  'Asia/Kolkata': '+05:30', 'Asia/Dubai': '+04:00', 'Asia/Singapore': '+08:00',
+  'Asia/Tokyo': '+09:00', 'Asia/Shanghai': '+08:00', 'Asia/Karachi': '+05:00',
+  'Asia/Dhaka': '+06:00', 'Europe/London': '+00:00', 'Europe/Berlin': '+01:00',
+  'America/New_York': '-05:00', 'America/Chicago': '-06:00', 'America/Los_Angeles': '-08:00',
+  'Australia/Sydney': '+10:00', 'Pacific/Auckland': '+12:00'
 };
+const getTzOffset = (tz) => TZ_OFFSETS[tz] || '+05:30';
 
 // Fetch company timezone from settings DB
 const getCompanyTimezone = async (companyId) => {
