@@ -9,7 +9,7 @@ import { Badge } from '../components/ui/Badge';
 
 // Live ticking timer for checked-in employees
 const LiveTimer = ({ checkInTime, breakMins = 0 }) => {
-  const [elapsed, setElapsed] = useState('00:00');
+  const [elapsed, setElapsed] = useState('00:00:00');
   useEffect(() => {
     if (!checkInTime || checkInTime === '-') return;
     const start = new Date(checkInTime).getTime();
@@ -18,10 +18,11 @@ const LiveTimer = ({ checkInTime, breakMins = 0 }) => {
       const diff = Math.max(0, Date.now() - start - breakMs);
       const h = Math.floor(diff / 3600000);
       const m = Math.floor((diff % 3600000) / 60000);
-      setElapsed(`${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`);
+      const s = Math.floor((diff % 60000) / 1000);
+      setElapsed(`${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`);
     };
     tick();
-    const id = setInterval(tick, 60000);
+    const id = setInterval(tick, 1000);
     return () => clearInterval(id);
   }, [checkInTime, breakMins]);
   return <span className="text-emerald-600 font-mono tabular-nums">{elapsed}</span>;
@@ -55,10 +56,11 @@ const Attendance = () => {
   const [isLoading, setIsLoading] = useState(false);
 
   const minsToHMS = (totalMins) => {
-    if (!totalMins || totalMins <= 0) return '00:00';
+    if (!totalMins || totalMins <= 0) return '00:00:00';
     const h = Math.floor(totalMins / 60);
     const m = Math.floor(totalMins % 60);
-    return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+    const s = Math.round((totalMins % 1) * 60);
+    return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
   };
 
   const formatTime = (timeStr, offsetMins = 0) => {
