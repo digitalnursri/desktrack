@@ -1331,7 +1331,70 @@ async function runMigrations() {
           UNIQUE(entity_id, field_id)
         );
       `);
-      
+
+      // ── ALTER TABLE migrations for existing production tables ──
+      // These add columns that were missing in the original schema.
+      // ADD COLUMN IF NOT EXISTS is safe to run repeatedly.
+      console.log('--- DB: Running ALTER TABLE migrations for production ---');
+
+      // attendance table — new columns for detailed tracking
+      const attAlters = [
+        'ALTER TABLE attendance ADD COLUMN IF NOT EXISTS attendance_date DATE',
+        'ALTER TABLE attendance ADD COLUMN IF NOT EXISTS last_check_out TIMESTAMP',
+        'ALTER TABLE attendance ADD COLUMN IF NOT EXISTS arrival_status VARCHAR(50)',
+        'ALTER TABLE attendance ADD COLUMN IF NOT EXISTS gross_minutes INTEGER DEFAULT 0',
+        'ALTER TABLE attendance ADD COLUMN IF NOT EXISTS total_break_minutes INTEGER DEFAULT 0',
+        'ALTER TABLE attendance ADD COLUMN IF NOT EXISTS other_break_minutes INTEGER DEFAULT 0',
+        'ALTER TABLE attendance ADD COLUMN IF NOT EXISTS net_work_minutes INTEGER DEFAULT 0',
+        'ALTER TABLE attendance ADD COLUMN IF NOT EXISTS overtime_minutes INTEGER DEFAULT 0',
+        "ALTER TABLE attendance ADD COLUMN IF NOT EXISTS flags JSONB DEFAULT '[]'",
+        'ALTER TABLE attendance ADD COLUMN IF NOT EXISTS ai_summary TEXT',
+      ];
+      for (const sql of attAlters) {
+        try { await pool.query(sql); } catch (e) { /* column already exists */ }
+      }
+
+      // custom_fields table — add field_id column
+      try {
+        await pool.query('ALTER TABLE custom_fields ADD COLUMN IF NOT EXISTS field_id VARCHAR(255)');
+      } catch (e) { /* already exists */ }
+
+      // employees table — add shift_id direct reference
+      try {
+        await pool.query('ALTER TABLE employees ADD COLUMN IF NOT EXISTS shift_id INTEGER');
+      } catch (e) { /* already exists */ }
+
+      // salary_structures — add deductions_json for custom deductions
+      try {
+        await pool.query('ALTER TABLE salary_structures ADD COLUMN IF NOT EXISTS deductions_json JSONB');
+      } catch (e) { /* already exists */ }
+
+      // payroll_records — add deductions_json for payroll custom data
+      try {
+        await pool.query('ALTER TABLE payroll_records ADD COLUMN IF NOT EXISTS deductions_json JSONB');
+      } catch (e) { /* already exists */ }
+
+      // shifts — add lunch/tea allowed minutes
+      const shiftAlters = [
+        'ALTER TABLE shifts ADD COLUMN IF NOT EXISTS lunch_allowed_minutes INTEGER DEFAULT 45',
+        'ALTER TABLE shifts ADD COLUMN IF NOT EXISTS tea_allowed_minutes INTEGER DEFAULT 15',
+      ];
+      for (const sql of shiftAlters) {
+        try { await pool.query(sql); } catch (e) { /* already exists */ }
+      }
+
+      // Backfill attendance_date from check_in where NULL
+      try {
+        await pool.query("UPDATE attendance SET attendance_date = check_in::date WHERE attendance_date IS NULL AND check_in IS NOT NULL");
+      } catch (e) { /* ignore */ }
+
+      // Backfill custom_fields.field_id where NULL
+      try {
+        await pool.query("UPDATE custom_fields SET field_id = 'custom_' || lower(regexp_replace(field_name, '[^a-zA-Z0-9]+', '_', 'g')) WHERE field_id IS NULL");
+      } catch (e) { /* ignore */ }
+
+      console.log('--- DB: ALTER TABLE migrations complete ---');
+
       const companyCount = await pool.query('SELECT COUNT(*) FROM companies');
       if (parseInt(companyCount.rows[0].count) === 0) {
         await pool.query("INSERT INTO companies (id, name, slug) VALUES (1, 'Creative Frenzy', 'creativefrenzy') ON CONFLICT DO NOTHING");
