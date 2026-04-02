@@ -380,7 +380,8 @@ const checkOut = async (attendanceId, companyId, manualCheckOutTime) => {
     [attendanceId]
   );
   if (openSession.rows.length === 0) {
-    throw new Error('No active check-in session found.');
+    // Session already closed — return existing record as-is (idempotent checkout)
+    return { ...record, message: 'Already checked out' };
   }
 
   const session = openSession.rows[0];

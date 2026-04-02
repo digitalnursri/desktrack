@@ -210,19 +210,24 @@ export const AuthProvider = ({ children }) => {
         localStorage.setItem('attendanceId', record.id);
       } else {
         // Checking Out
-        if (!attendanceId) {
-          // Fallback: try to find the record first if ID is missing from local state
-          const d = new Date();
-          const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-          const statusRes = await api.get(`/attendance?date=${today}`);
-          const myRecord = statusRes.data.find(r => r.email === user.email && r.is_checked_in && !String(r.id).startsWith('no-ref-'));
-          if (myRecord) {
-            await api.post(`/attendance/check-out/${myRecord.id}`, {});
+        try {
+          if (!attendanceId) {
+            const d = new Date();
+            const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+            const statusRes = await api.get(`/attendance?date=${today}`);
+            const myRecord = statusRes.data.find(r => r.email === user.email && r.is_checked_in && !String(r.id).startsWith('no-ref-'));
+            if (myRecord) {
+              await api.post(`/attendance/check-out/${myRecord.id}`, {});
+            }
+          } else {
+            await api.post(`/attendance/check-out/${attendanceId}`, {});
           }
-        } else {
-          await api.post(`/attendance/check-out/${attendanceId}`, {});
+        } catch (checkoutErr) {
+          console.warn('Checkout API error (clearing state anyway):', checkoutErr.response?.data?.error);
+          // Session already closed on backend — clear frontend state regardless
         }
-        
+
+        // Always clear checked-in state after checkout attempt
         setIsCheckedIn(false);
         setAttendanceId(null);
         localStorage.removeItem('isCheckedIn');
