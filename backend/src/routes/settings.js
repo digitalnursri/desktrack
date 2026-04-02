@@ -75,4 +75,44 @@ router.delete('/domains/:id', authMiddleware, checkRole(['SUPER_ADMIN']), async 
   }
 });
 
+// ─── Company Settings (key-value store) ───────────────────────────────────
+
+// GET all company settings
+router.get('/config', authMiddleware, async (req, res) => {
+  try {
+    const result = await query(
+      'SELECT setting_key, setting_value FROM company_settings WHERE company_id = $1',
+      [req.tenantId]
+    );
+    const settings = {};
+    result.rows.forEach(r => {
+      try { settings[r.setting_key] = JSON.parse(r.setting_value); } catch { settings[r.setting_key] = r.setting_value; }
+    });
+    res.json(settings);
+  } catch (err) {
+    console.error('Get Settings Error:', err);
+    res.status(500).json({ error: 'Server error retrieving settings.' });
+  }
+});
+
+// PUT (upsert) one or more settings
+router.put('/config', authMiddleware, checkRole(['SUPER_ADMIN', 'HR']), async (req, res) => {
+  const { settings } = req.body; // { key: value, ... }
+  try {
+    const promises = Object.entries(settings || {}).map(([key, value]) =>
+      query(
+        `INSERT INTO company_settings (company_id, setting_key, setting_value)
+         VALUES ($1, $2, $3)
+         ON CONFLICT (company_id, setting_key) DO UPDATE SET setting_value = EXCLUDED.setting_value`,
+        [req.tenantId, key, typeof value === 'string' ? value : JSON.stringify(value)]
+      )
+    );
+    await Promise.all(promises);
+    res.json({ message: 'Settings saved.' });
+  } catch (err) {
+    console.error('Save Settings Error:', err);
+    res.status(500).json({ error: 'Server error saving settings.' });
+  }
+});
+
 module.exports = router;

@@ -153,7 +153,7 @@ function numberToWords(n) {
 
 // ─── Main Component ──────────────────────────────────────────────────────────
 const Payroll = () => {
-  const { selectedDate, formatCurrency, currencyConfig, hasPermission } = useAuth();
+  const { selectedDate, formatCurrency, currencyConfig, hasPermission, deductionTypes: globalDeductionTypes } = useAuth();
   const now = new Date(selectedDate);
   const [selMonth, setSelMonth] = useState(now.getMonth() + 1);
   const [selYear,  setSelYear]  = useState(now.getFullYear());
@@ -325,7 +325,7 @@ const Payroll = () => {
       } catch (_) {}
     }
     // Load global deduction type templates from Settings (Salary Slip Fields)
-    const globalTypes = (() => { try { return JSON.parse(localStorage.getItem('deductionTypes') || '[]'); } catch { return []; } })();
+    const globalTypes = globalDeductionTypes || [];
     // Merge: keep saved values for existing fields, add any new fields from Settings
     const mergedCustom = globalTypes.map(t => {
       const saved = (savedCustomDeductions || []).find(s => s.label === t.name);

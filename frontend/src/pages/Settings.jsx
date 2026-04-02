@@ -11,7 +11,7 @@ import { Modal } from '../components/ui/Modal';
 import { motion } from 'framer-motion';
 
 const Settings = () => {
-  const { user, shifts, setShifts, enabledModules, setEnabledModules, hasPermission, setRolePermissions, currencyConfig, setCurrencyConfig } = useAuth();
+  const { user, shifts, setShifts, enabledModules, setEnabledModules, hasPermission, rolePermissions, setRolePermissions, currencyConfig, setCurrencyConfig, deductionTypes, setDeductionTypes } = useAuth();
   const navigate = useNavigate();
 
   if (!hasPermission('settings', 'view')) {
@@ -30,15 +30,8 @@ const Settings = () => {
   const [editingField, setEditingField] = useState(null);
   const [editingShift, setEditingShift] = useState(null);
 
-  // Deduction Types (global templates for salary structures)
-  const [deductionTypes, setDeductionTypes] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('deductionTypes') || '[]'); } catch { return []; }
-  });
   const [newDeductionType, setNewDeductionType] = useState({ name: '', type: 'fixed', category: 'deduction', defaultValue: 0 });
-  const saveDeductionTypes = (updated) => {
-    setDeductionTypes(updated);
-    localStorage.setItem('deductionTypes', JSON.stringify(updated));
-  };
+  const saveDeductionTypes = (updated) => { setDeductionTypes(updated); };
 
   // Custom Fields Data
   const [customFields, setCustomFields] = useState([]);

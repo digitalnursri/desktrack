@@ -18,15 +18,22 @@ export const AuthProvider = ({ children }) => {
     return localStorage.getItem('attendanceId');
   });
   const [shifts, setShifts] = useState([]);
-  // Currency configuration (default: INR)
-  const [currencyConfig, setCurrencyConfig] = useState(() => {
-    const saved = localStorage.getItem('currencyConfig');
-    return saved ? JSON.parse(saved) : { code: 'INR', symbol: '₹', name: 'Indian Rupee', locale: 'en-IN' };
-  });
 
-  useEffect(() => {
-    localStorage.setItem('currencyConfig', JSON.stringify(currencyConfig));
-  }, [currencyConfig]);
+  // Defaults
+  const DEFAULT_CURRENCY = { code: 'INR', symbol: '₹', name: 'Indian Rupee', locale: 'en-IN' };
+  const DEFAULT_MODULES = { employees: true, attendance: true, leaves: true, payroll: true, reports: true, performance: true };
+  const DEFAULT_ROLE_PERMISSIONS = {
+    SUPER_ADMIN: { employees: ['view','create','edit','delete'], attendance: ['view','create','edit','delete'], leaves: ['view','create','edit','delete','approve'], payroll: ['view','create','edit','delete','approve'], reports: ['view','create','edit','delete'], performance: ['view','create','edit','delete'], settings: ['view','edit'] },
+    HR: { employees: ['view','create','edit'], attendance: ['view','edit'], leaves: ['view','approve'], payroll: ['view'], reports: ['view'], performance: ['view'], settings: ['view','edit'] },
+    MANAGER: { employees: ['view'], attendance: ['view','edit'], leaves: ['view','approve'], payroll: [], reports: ['view'], performance: ['view'], settings: [] },
+    EMPLOYEE: { employees: ['view'], attendance: ['view'], leaves: ['view'], payroll: [], reports: [], performance: [], settings: [] }
+  };
+  const DEFAULT_DEDUCTION_TYPES = [];
+
+  const [currencyConfig, setCurrencyConfig] = useState(DEFAULT_CURRENCY);
+  const [enabledModules, setEnabledModules] = useState(DEFAULT_MODULES);
+  const [rolePermissions, setRolePermissions] = useState(DEFAULT_ROLE_PERMISSIONS);
+  const [deductionTypes, setDeductionTypes] = useState(DEFAULT_DEDUCTION_TYPES);
 
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat(currencyConfig.locale, {
@@ -37,48 +44,43 @@ export const AuthProvider = ({ children }) => {
     }).format(amount || 0);
   };
 
-  const [enabledModules, setEnabledModules] = useState(() => {
-    const saved = localStorage.getItem('enabledModules');
-    return saved ? JSON.parse(saved) : {
-      employees: true,
-      attendance: true,
-      leaves: true,
-      payroll: true,
-      reports: true,
-      performance: true
-    };
-  });
-
-  // Role-based permissions
-  const DEFAULT_ROLE_PERMISSIONS = {
-    SUPER_ADMIN: { employees: ['view','create','edit','delete'], attendance: ['view','create','edit','delete'], leaves: ['view','create','edit','delete','approve'], payroll: ['view','create','edit','delete','approve'], reports: ['view','create','edit','delete'], performance: ['view','create','edit','delete'], settings: ['view','edit'] },
-    HR: { employees: ['view','create','edit'], attendance: ['view','edit'], leaves: ['view','approve'], payroll: ['view'], reports: ['view'], performance: ['view'], settings: ['view','edit'] },
-    MANAGER: { employees: ['view'], attendance: ['view','edit'], leaves: ['view','approve'], payroll: [], reports: ['view'], performance: ['view'], settings: [] },
-    EMPLOYEE: { employees: ['view'], attendance: ['view'], leaves: ['view'], payroll: [], reports: [], performance: [], settings: [] }
-  };
-
-  const [rolePermissions, setRolePermissions] = useState(() => {
-    const saved = localStorage.getItem('rolePermissions');
-    return saved ? JSON.parse(saved) : DEFAULT_ROLE_PERMISSIONS;
-  });
-
-  useEffect(() => {
-    localStorage.setItem('rolePermissions', JSON.stringify(rolePermissions));
-  }, [rolePermissions]);
-
   const hasPermission = (module, action) => {
     if (!user) return false;
     const role = user.role?.toUpperCase() || 'EMPLOYEE';
-    // SUPER_ADMIN always has full access
     if (role === 'SUPER_ADMIN') return true;
     const perms = rolePermissions[role];
     if (!perms) return false;
     return perms[module]?.includes(action) || false;
   };
 
-  useEffect(() => {
-    localStorage.setItem('enabledModules', JSON.stringify(enabledModules));
-  }, [enabledModules]);
+  // Fetch all company settings from DB on login
+  const fetchCompanySettings = async () => {
+    try {
+      const res = await api.get('/settings/config');
+      const s = res.data || {};
+      if (s.currencyConfig) setCurrencyConfig(s.currencyConfig);
+      if (s.enabledModules) setEnabledModules(s.enabledModules);
+      if (s.rolePermissions) setRolePermissions(s.rolePermissions);
+      if (s.deductionTypes) setDeductionTypes(s.deductionTypes);
+    } catch (err) {
+      console.warn('Failed to fetch company settings (using defaults):', err.message);
+    }
+  };
+
+  // Save a setting to DB
+  const saveCompanySetting = async (key, value) => {
+    try {
+      await api.put('/settings/config', { settings: { [key]: value } });
+    } catch (err) {
+      console.error('Failed to save setting:', key, err.message);
+    }
+  };
+
+  // Wrapped setters that also persist to DB
+  const updateCurrencyConfig = (val) => { setCurrencyConfig(val); saveCompanySetting('currencyConfig', val); };
+  const updateEnabledModules = (val) => { setEnabledModules(val); saveCompanySetting('enabledModules', val); };
+  const updateRolePermissions = (val) => { setRolePermissions(val); saveCompanySetting('rolePermissions', val); };
+  const updateDeductionTypes = (val) => { setDeductionTypes(val); saveCompanySetting('deductionTypes', val); };
 
   // Sync attendance status from backend on load or user change
   useEffect(() => {
@@ -111,7 +113,7 @@ export const AuthProvider = ({ children }) => {
     }
   }, [user, loading, selectedDate]);
 
-  // Fetch shifts only for authenticated users
+  // Fetch shifts and company settings for authenticated users
   useEffect(() => {
     const fetchShifts = async () => {
       try {
@@ -122,6 +124,12 @@ export const AuthProvider = ({ children }) => {
       }
     };
 
+    if (user && !loading) {
+      fetchCompanySettings();
+    }
+  }, [user, loading]);
+
+  useEffect(() => {
     if (user && !loading) {
       fetchShifts();
     }
@@ -249,14 +257,15 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ 
+    <AuthContext.Provider value={{
       user, login, googleLogin, logout, loading,
       isCheckedIn, toggleCheckIn,
       selectedDate, setSelectedDate: handleSetSelectedDate,
       shifts, setShifts: handleUpdateShifts,
-      enabledModules, setEnabledModules,
-      rolePermissions, setRolePermissions, hasPermission,
-      currencyConfig, setCurrencyConfig, formatCurrency
+      enabledModules, setEnabledModules: updateEnabledModules,
+      rolePermissions, setRolePermissions: updateRolePermissions, hasPermission,
+      currencyConfig, setCurrencyConfig: updateCurrencyConfig, formatCurrency,
+      deductionTypes, setDeductionTypes: updateDeductionTypes
     }}>
       {children}
     </AuthContext.Provider>

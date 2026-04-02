@@ -97,6 +97,7 @@ const memoryDB = {
   ],
   custom_fields: [],
   custom_field_values: [],
+  company_settings: [],
   salary_structures: [],
   salary_structure_history: [],
   payroll_records: [],
@@ -523,6 +524,22 @@ const db = {
             const newValue = { id: memoryDB.custom_field_values.length + 1, company_id: companyId, entity_id: entityId, field_id: fieldId, value };
             memoryDB.custom_field_values.push(newValue);
             resultRows = [newValue];
+          }
+          saveToDisk();
+          rowCount = 1;
+        }
+        // [UPSERT] Company Settings
+        else if (q.includes('insert into company_settings')) {
+          if (!memoryDB.company_settings) memoryDB.company_settings = [];
+          const companyId = params[0], key = params[1], value = params[2];
+          const idx = memoryDB.company_settings.findIndex(s => s.company_id == companyId && s.setting_key === key);
+          if (idx !== -1) {
+            memoryDB.company_settings[idx].setting_value = value;
+            resultRows = [memoryDB.company_settings[idx]];
+          } else {
+            const newSetting = { id: memoryDB.company_settings.length + 1, company_id: companyId, setting_key: key, setting_value: value };
+            memoryDB.company_settings.push(newSetting);
+            resultRows = [newSetting];
           }
           saveToDisk();
           rowCount = 1;
@@ -1067,6 +1084,17 @@ const db = {
           });
           rowCount = resultRows.length;
         }
+        else if (q.includes('from company_settings')) {
+          const settings = memoryDB.company_settings || [];
+          if (q.includes('setting_key =')) {
+            // Single key lookup: company_id=$1, setting_key=$2
+            resultRows = settings.filter(s => s.company_id == params[0] && s.setting_key === params[1]);
+          } else {
+            // All settings for company: company_id=$1
+            resultRows = settings.filter(s => s.company_id == params[0]);
+          }
+          rowCount = resultRows.length;
+        }
         else if (q.includes('from custom_field_values')) {
           const companyId = params[0];
           const entityId = params[1];
@@ -1332,6 +1360,14 @@ async function runMigrations() {
           field_id INTEGER NOT NULL REFERENCES custom_fields(id) ON DELETE CASCADE,
           value TEXT,
           UNIQUE(entity_id, field_id)
+        );
+
+        CREATE TABLE IF NOT EXISTS company_settings (
+          id SERIAL PRIMARY KEY,
+          company_id INTEGER NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+          setting_key VARCHAR(255) NOT NULL,
+          setting_value TEXT,
+          UNIQUE(company_id, setting_key)
         );
       `);
 
