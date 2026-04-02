@@ -374,13 +374,15 @@ const checkOut = async (attendanceId, companyId, manualCheckOutTime) => {
     [attendanceId]
   );
 
-  // 2. Find and close ALL open sessions for this attendance
+  // 2. Find and close ALL open sessions for this employee today
+  //    (includes orphaned sessions from other attendance records)
   const openSessions = await query(
-    'SELECT * FROM attendance_sessions WHERE attendance_id = $1 AND check_out IS NULL ORDER BY check_in DESC',
-    [attendanceId]
+    `SELECT * FROM attendance_sessions
+     WHERE employee_id = $1 AND company_id = $2 AND check_out IS NULL
+     ORDER BY check_in DESC`,
+    [record.employee_id, companyId]
   );
   if (openSessions.rows.length === 0) {
-    // Session already closed — return existing record as-is (idempotent checkout)
     return { ...record, message: 'Already checked out' };
   }
 
