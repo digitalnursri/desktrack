@@ -158,15 +158,12 @@ const Attendance = () => {
 
   const handleUpdate = async () => {
     try {
-      const parseDisplayTime = (dt, displayTime) => {
-        if (!displayTime || displayTime === '-') return null;
-        const [time, modifier] = displayTime.split(' ');
-        let [h, m] = time.split(':').map(Number);
-        if (modifier === 'PM' && h < 12) h += 12;
-        if (modifier === 'AM' && h === 12) h = 0;
-        const d = new Date(dt);
-        d.setHours(h, m, 0, 0);
-        return d.toISOString();
+      const parseDisplayTime = (dt, timeVal) => {
+        if (!timeVal || timeVal === '-' || timeVal === 'Active') return null;
+        // timeVal is "HH:MM" from time input
+        const [h, m] = timeVal.split(':').map(Number);
+        if (isNaN(h) || isNaN(m)) return null;
+        return `${dt}T${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:00+05:30`;
       };
 
       const payload = {
@@ -182,6 +179,7 @@ const Attendance = () => {
       fetchAttendance();
     } catch (err) {
       console.error('Update failed:', err);
+      alert(err.response?.data?.error || 'Failed to update attendance');
     }
   };
 
@@ -194,10 +192,20 @@ const Attendance = () => {
 
   const openEdit = (record) => {
     setActiveRecord(record);
-    setEditForm({ 
-      checkIn: record.checkIn, 
-      checkOut: record.checkOut,
-      remarks: record.remarks || '' 
+    // Convert display time "12:35 pm" to 24h input value "12:35" for time input
+    const to24h = (displayTime) => {
+      if (!displayTime || displayTime === '-' || displayTime === 'Active') return '';
+      const [time, mod] = displayTime.split(' ');
+      if (!time) return '';
+      let [h, m] = time.split(':').map(Number);
+      if (mod?.toUpperCase() === 'PM' && h < 12) h += 12;
+      if (mod?.toUpperCase() === 'AM' && h === 12) h = 0;
+      return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+    };
+    setEditForm({
+      checkIn: to24h(record.checkIn),
+      checkOut: to24h(record.checkOut),
+      remarks: record.remarks || ''
     });
     setIsEditModalOpen(true);
   };
@@ -383,18 +391,18 @@ const Attendance = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Check In</label>
-                  <Input 
-                    value={editForm.checkIn} 
+                  <input type="time"
+                    value={editForm.checkIn}
                     onChange={(e) => setEditForm({...editForm, checkIn: e.target.value})}
-                    placeholder="e.g. 10:00 AM"
+                    className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm font-semibold focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 bg-slate-50"
                   />
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">Check Out</label>
-                  <Input 
-                    value={editForm.checkOut} 
+                  <input type="time"
+                    value={editForm.checkOut}
                     onChange={(e) => setEditForm({...editForm, checkOut: e.target.value})}
-                    placeholder="e.g. 07:00 PM"
+                    className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm font-semibold focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 bg-slate-50"
                   />
                 </div>
               </div>
