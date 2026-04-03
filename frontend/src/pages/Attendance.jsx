@@ -294,7 +294,7 @@ const Attendance = () => {
         </div>
 
         <div className="w-full overflow-hidden">
-          <table className="w-full text-left">
+          <table className="w-full text-left table-fixed">
             <thead className="bg-slate-50/90 backdrop-blur-sm sticky top-0 z-10 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
               <tr>
                 <th className="px-5 py-4 font-bold text-slate-600 uppercase text-xs tracking-wider border-b border-slate-200">Employee</th>
@@ -373,7 +373,7 @@ const Attendance = () => {
                       <div className="flex flex-col items-start gap-1 min-w-0">
                         <Button variant="ghost" onClick={() => openRemarks(record)} className="text-slate-500 font-bold text-xs px-2 py-1 h-auto hover:bg-slate-100">Remarks</Button>
                         {record.remarks && (
-                          <p className="text-xs text-slate-500 italic bg-amber-50 px-2 py-1 rounded-md border border-amber-100 whitespace-normal break-words">
+                          <p className="text-[10px] text-slate-500 italic bg-amber-50 px-2 py-1 rounded-md border border-amber-100 line-clamp-2 max-w-[160px]" title={record.remarks}>
                             {record.remarks}
                           </p>
                         )}
