@@ -294,7 +294,7 @@ const Attendance = () => {
         </div>
 
         <div className="w-full overflow-hidden">
-          <table className="w-full text-left table-fixed">
+          <table className="w-full text-left">
             <thead className="bg-slate-50/90 backdrop-blur-sm sticky top-0 z-10 shadow-[0_1px_2px_rgba(0,0,0,0.04)]">
               <tr>
                 <th className="px-5 py-4 font-bold text-slate-600 uppercase text-xs tracking-wider border-b border-slate-200">Employee</th>

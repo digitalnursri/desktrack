@@ -10,7 +10,7 @@ const DashboardLayout = () => {
       <div className="flex-1 flex flex-col min-w-0">
         <Topbar />
         <main className="flex-1 overflow-y-auto p-4 md:p-8 custom-scrollbar relative">
-          <div className="max-w-7xl mx-auto w-full">
+          <div className="w-full">
             <Outlet />
           </div>
         </main>
