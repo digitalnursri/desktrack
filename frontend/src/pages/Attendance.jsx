@@ -368,9 +368,16 @@ const Attendance = () => {
                     {getStatusBadge(record.displayStatus || record.status, record.reason)}
                   </td>
                   <td className="px-5 py-3 text-right">
-                    <div className="flex items-center justify-end space-x-2">
-                      <Button variant="ghost" onClick={() => openEdit(record)} className="text-primary-600 font-bold text-xs px-2 py-1 h-auto hover:bg-primary-50">Edit</Button>
-                      <Button variant="ghost" onClick={() => openRemarks(record)} className="text-slate-500 font-bold text-xs px-2 py-1 h-auto hover:bg-slate-100">Remarks</Button>
+                    <div className="flex flex-col items-end gap-1.5">
+                      <div className="flex items-center gap-2">
+                        <Button variant="ghost" onClick={() => openEdit(record)} className="text-primary-600 font-bold text-xs px-2 py-1 h-auto hover:bg-primary-50">Edit</Button>
+                        <Button variant="ghost" onClick={() => openRemarks(record)} className="text-slate-500 font-bold text-xs px-2 py-1 h-auto hover:bg-slate-100">Remarks</Button>
+                      </div>
+                      {record.remarks && (
+                        <p className="text-[10px] text-slate-400 italic max-w-[180px] truncate" title={record.remarks}>
+                          "{record.remarks}"
+                        </p>
+                      )}
                     </div>
                   </td>
                 </tr>
