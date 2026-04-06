@@ -83,14 +83,21 @@ const EmployeeProfile = ({ employee, fields, onUpdate }) => {
     { icon: Cake, label: 'Date of Birth', value: fmtDate(employee.date_of_birth), id: 'date_of_birth' },
   ];
 
-  // IDs already shown in the info section above (+ header fields)
+  // IDs and names already shown in the info section above (+ header fields)
   const shownIds = new Set([
     'email', 'employee_code', 'designation_id', 'department_id', 'shift_id',
     'joining_date', 'date_of_birth', 'first_name', 'last_name', 'status', 'role'
   ]);
+  const shownNames = new Set([
+    'first name', 'last name', 'email', 'work email', 'employee id', 'employee code',
+    'department', 'designation', 'assigned shift', 'shift', 'joining date', 'join date',
+    'date of birth', 'birthday', 'dob', 'role', 'status'
+  ]);
 
   // Only truly custom fields (not already displayed above)
-  const customFields = fields?.filter(f => !shownIds.has(f.field_id)) || [];
+  const customFields = fields?.filter(f =>
+    !shownIds.has(f.field_id) && !shownNames.has(f.field_name?.toLowerCase())
+  ) || [];
 
   // Add custom fields to the info list
   customFields.forEach(f => {
