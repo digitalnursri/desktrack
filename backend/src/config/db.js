@@ -1465,43 +1465,47 @@ async function runMigrations() {
         await pool.query("UPDATE custom_fields SET field_id = 'custom_' || lower(regexp_replace(field_name, '[^a-zA-Z0-9]+', '_', 'g')) WHERE field_id IS NULL");
       } catch (e) { /* ignore */ }
 
-      // Add unique constraint on custom_fields
-      try {
-        await pool.query('CREATE UNIQUE INDEX IF NOT EXISTS idx_custom_fields_unique ON custom_fields (company_id, field_id, module_name)');
-      } catch (e) { /* already exists or duplicates exist */ }
-
-      // Seed default employee custom fields for all companies
+      // Clean and seed default employee custom fields
       try {
         const companies = await pool.query('SELECT id FROM companies');
         const defaultFields = [
-          { field_id: 'first_name', field_name: 'First Name', field_type: 'text', is_required: true },
-          { field_id: 'last_name', field_name: 'Last Name', field_type: 'text', is_required: true },
-          { field_id: 'email', field_name: 'Work Email', field_type: 'text', is_required: true },
-          { field_id: 'employee_code', field_name: 'Employee ID', field_type: 'text', is_required: true },
-          { field_id: 'department_id', field_name: 'Department', field_type: 'dropdown', is_required: true },
-          { field_id: 'designation_id', field_name: 'Designation', field_type: 'dropdown', is_required: true },
-          { field_id: 'shift_id', field_name: 'Assigned Shift', field_type: 'dropdown', is_required: true },
-          { field_id: 'joining_date', field_name: 'Joining Date', field_type: 'date', is_required: true },
-          { field_id: 'date_of_birth', field_name: 'Date of Birth', field_type: 'date', is_required: false },
-          { field_id: 'role', field_name: 'Role', field_type: 'dropdown', is_required: true, options: '[{"label":"Employee","value":"EMPLOYEE"},{"label":"HR","value":"HR"},{"label":"Manager","value":"MANAGER"},{"label":"Super Admin","value":"SUPER_ADMIN"}]' },
+          { field_id: 'first_name', field_name: 'First Name', field_type: 'text', is_required: true, sort: 1 },
+          { field_id: 'last_name', field_name: 'Last Name', field_type: 'text', is_required: true, sort: 2 },
+          { field_id: 'email', field_name: 'Work Email', field_type: 'text', is_required: true, sort: 3 },
+          { field_id: 'employee_code', field_name: 'Employee ID', field_type: 'text', is_required: true, sort: 4 },
+          { field_id: 'department_id', field_name: 'Department', field_type: 'dropdown', is_required: true, sort: 5 },
+          { field_id: 'designation_id', field_name: 'Designation', field_type: 'dropdown', is_required: true, sort: 6 },
+          { field_id: 'shift_id', field_name: 'Assigned Shift', field_type: 'dropdown', is_required: true, sort: 7 },
+          { field_id: 'joining_date', field_name: 'Joining Date', field_type: 'date', is_required: true, sort: 8 },
+          { field_id: 'date_of_birth', field_name: 'Date of Birth', field_type: 'date', is_required: false, sort: 9 },
+          { field_id: 'role', field_name: 'Role', field_type: 'dropdown', is_required: true, sort: 10, options: '[{"label":"Employee","value":"EMPLOYEE"},{"label":"HR","value":"HR"},{"label":"Manager","value":"MANAGER"},{"label":"Super Admin","value":"SUPER_ADMIN"}]' },
         ];
+        const knownIds = defaultFields.map(f => f.field_id);
+
         for (const co of companies.rows) {
+          // 1. Delete old duplicates: any row whose field_id matches a default field — we'll re-insert cleanly
+          await pool.query(
+            `DELETE FROM custom_fields WHERE company_id = $1 AND module_name = 'employees' AND field_id = ANY($2::text[])`,
+            [co.id, knownIds]
+          ).catch(() => {});
+
+          // Also remove orphan fields with NULL field_id that match default names
+          const knownNames = defaultFields.map(f => f.field_name);
+          await pool.query(
+            `DELETE FROM custom_fields WHERE company_id = $1 AND module_name = 'employees' AND (field_id IS NULL OR field_id = '') AND field_name = ANY($2::text[])`,
+            [co.id, knownNames]
+          ).catch(() => {});
+
+          // 2. Insert all default fields fresh
           for (const f of defaultFields) {
             await pool.query(
               `INSERT INTO custom_fields (module_name, field_name, field_type, is_required, options, company_id, field_id)
-               VALUES ('employees', $1, $2, $3, $4, $5, $6)
-               ON CONFLICT DO NOTHING`,
+               VALUES ('employees', $1, $2, $3, $4, $5, $6)`,
               [f.field_name, f.field_type, f.is_required, f.options || null, co.id, f.field_id]
             ).catch(() => {});
           }
         }
-        // Clean up duplicate custom fields — keep lowest ID per (company_id, field_id, module_name)
-        await pool.query(`
-          DELETE FROM custom_fields WHERE id NOT IN (
-            SELECT MIN(id) FROM custom_fields GROUP BY company_id, field_id, module_name
-          )
-        `).catch(() => {});
-        console.log('--- DB: Seeded default employee custom fields ---');
+        console.log('--- DB: Cleaned and seeded default employee custom fields ---');
       } catch (e) { console.log('--- DB: Custom fields seed skipped:', e.message); }
 
       console.log('--- DB: ALTER TABLE migrations complete ---');
