@@ -311,18 +311,24 @@ const checkIn = async (userIdOrEmployeeId, companyId, location, manualCheckInTim
   let attendanceId;
   let statusRecord;
 
+  // Auto-close any orphaned open sessions for this employee (from any day)
+  const orphanSessions = await query(
+    'SELECT id, check_in FROM attendance_sessions WHERE employee_id = $1 AND company_id = $2 AND check_out IS NULL',
+    [employeeId, companyId]
+  );
+  if (orphanSessions.rows.length > 0) {
+    console.log(`[CheckIn] Closing ${orphanSessions.rows.length} orphaned sessions for employee ${employeeId}`);
+    for (const sess of orphanSessions.rows) {
+      const dur = Math.max(0, Math.floor((new Date() - new Date(sess.check_in)) / 60000));
+      await query('UPDATE attendance_sessions SET check_out = NOW(), duration_minutes = $1 WHERE id = $2', [dur, sess.id]);
+    }
+  }
+
   if (existingAtt.rows.length > 0) {
     attendanceId = existingAtt.rows[0].id;
     statusRecord = existingAtt.rows[0];
-    
-    // Check if there's already an open session
-    const openSession = await query(
-      'SELECT id FROM attendance_sessions WHERE attendance_id = $1 AND check_out IS NULL',
-      [attendanceId]
-    );
-    if (openSession.rows.length > 0) {
-      throw new Error('You are already checked in. Please check out first.');
-    }
+
+    // If already checked out today and no open sessions, this is a re-check-in (multiple sessions per day)
   } else {
     // First check-in of the day
     const { daily_attendance } = calculateAttendance(shift, checkInTime, null);
