@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, X, Clock, Coffee, FileText, User } from 'lucide-react';
 import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
-import Card from '../components/ui/Card';
+import { Card } from '../components/ui/Card';
 
 const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
