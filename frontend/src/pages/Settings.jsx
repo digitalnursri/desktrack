@@ -282,7 +282,7 @@ const Settings = () => {
         const cfRes = await api.get('/custom-fields?module=employees');
         setCustomFields(cfRes.data);
       } catch (err) {
-        alert('Failed to update option');
+        alert(err.response?.data?.error || 'Failed to update option');
       }
     } else if (managingField.field_id === 'role') {
       const updated = optionsList.map(o => o.id === opt.id ? { ...o, name: editOptionName.trim(), value: editOptionName.trim().toUpperCase().replace(/\s+/g, '_') } : o);
