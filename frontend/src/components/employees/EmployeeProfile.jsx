@@ -72,46 +72,45 @@ const EmployeeProfile = ({ employee, fields, onUpdate }) => {
     catch { return 'N/A'; }
   };
 
-  // All profile info fields — single unified list, no duplicates
-  const allInfoFields = [
-    { icon: Mail, label: 'Email Address', value: employee.email, id: 'email' },
-    { icon: Briefcase, label: 'Employee ID', value: employee.employee_code, id: 'employee_code' },
-    { icon: Shield, label: 'Designation', value: employee.designation_name, id: 'designation_id' },
-    { icon: MapPin, label: 'Department', value: employee.department_name, id: 'department_id' },
-    { icon: Clock, label: 'Assigned Shift', value: employee.shift_name, id: 'shift_id' },
-    { icon: Calendar, label: 'Joining Date', value: fmtDate(employee.joining_date), id: 'joining_date' },
-    { icon: Cake, label: 'Date of Birth', value: fmtDate(employee.date_of_birth), id: 'date_of_birth' },
-  ];
+  // Icon map for known field_ids
+  const iconMap = {
+    first_name: User, last_name: User, email: Mail, employee_code: Briefcase,
+    department_id: MapPin, designation_id: Shield, shift_id: Clock,
+    joining_date: Calendar, date_of_birth: Cake, role: Shield,
+  };
 
-  // IDs and names already shown in the info section above (+ header fields)
-  const shownIds = new Set([
-    'email', 'employee_code', 'designation_id', 'department_id', 'shift_id',
-    'joining_date', 'date_of_birth', 'first_name', 'last_name', 'status', 'role'
-  ]);
-  const shownNames = new Set([
-    'first name', 'last name', 'email', 'work email', 'employee id', 'employee code',
-    'department', 'designation', 'assigned shift', 'shift', 'joining date', 'join date',
-    'date of birth', 'birthday', 'dob', 'role', 'status'
-  ]);
-
-  // Only truly custom fields (not already displayed above)
-  const customFields = fields?.filter(f =>
-    !shownIds.has(f.field_id) && !shownNames.has(f.field_name?.toLowerCase())
-  ) || [];
-
-  // Add custom fields to the info list
-  customFields.forEach(f => {
-    const val = employee[f.field_id];
-    if (val !== undefined && val !== null && val !== '') {
-      allInfoFields.push({
-        icon: f.field_type === 'date' ? Calendar : f.field_type === 'boolean' ? FileText : Phone,
-        label: f.field_name,
-        value: f.field_type === 'date' ? fmtDate(val) : String(val),
-        id: f.field_id,
-        color: 'text-indigo-500'
-      });
+  // Value resolver — show names for dropdowns, format dates
+  const resolveValue = (f) => {
+    const fid = f.field_id || f.id;
+    if (fid === 'department_id') return employee.department_name || employee[fid] || '';
+    if (fid === 'designation_id') return employee.designation_name || employee[fid] || '';
+    if (fid === 'shift_id') return employee.shift_name || employee[fid] || '';
+    if (fid === 'role') return employee.role || '';
+    if (f.field_type === 'date') return fmtDate(employee[fid]);
+    if (f.field_type === 'dropdown' && f.options) {
+      const val = employee[fid];
+      const opt = (Array.isArray(f.options) ? f.options : []).find(o => String(typeof o === 'object' ? o.value : o) === String(val));
+      return opt ? (typeof opt === 'object' ? opt.label : opt) : val || '';
     }
-  });
+    return employee[fid] || '';
+  };
+
+  // Skip fields already shown in the header (first_name, last_name, status, role are in the banner)
+  const skipInGrid = new Set(['first_name', 'last_name', 'status']);
+
+  // Build info fields dynamically from custom fields API
+  const allInfoFields = (fields || [])
+    .filter(f => !skipInGrid.has(f.field_id || f.id))
+    .map(f => {
+      const fid = f.field_id || f.id;
+      const val = resolveValue(f);
+      return {
+        icon: iconMap[fid] || (f.field_type === 'date' ? Calendar : f.field_type === 'dropdown' ? Shield : FileText),
+        label: f.field_name,
+        value: val || 'Not provided',
+        id: fid
+      };
+    });
 
   // Joining anniversary
   const joinYears = employee.joining_date ? Math.floor((new Date() - new Date(employee.joining_date)) / (365.25 * 24 * 60 * 60 * 1000)) : 0;
