@@ -11,7 +11,7 @@ import { Modal } from '../components/ui/Modal';
 import { motion } from 'framer-motion';
 
 const Settings = () => {
-  const { user, shifts, setShifts, enabledModules, setEnabledModules, hasPermission, rolePermissions, setRolePermissions, currencyConfig, setCurrencyConfig, deductionTypes, setDeductionTypes, companyTimezone, setCompanyTimezone } = useAuth();
+  const { user, shifts, setShifts, enabledModules, setEnabledModules, hasPermission, rolePermissions, setRolePermissions, currencyConfig, setCurrencyConfig, deductionTypes, setDeductionTypes, companyTimezone, setCompanyTimezone, breakConfig, setBreakConfig } = useAuth();
   const navigate = useNavigate();
 
   if (!hasPermission('settings', 'view')) {
@@ -154,7 +154,7 @@ const Settings = () => {
   ]);
 
   const [shiftFormData, setShiftFormData] = useState({
-    name: '', shift_start_time: '10:00', shift_end_time: '19:00', total_working_hours: 9, grace_minutes: 15, late_start_time: '10:16', late_end_time: '10:59', overlate_start_time: '11:00', halfday_start_time: '12:30', lunch_allowed_minutes: 45, tea_allowed_minutes: 15, max_break_minutes: 70
+    name: '', shift_start_time: '10:00', shift_end_time: '19:00', total_working_hours: 9, grace_minutes: 15, late_start_time: '10:16', late_end_time: '10:59', overlate_start_time: '11:00', halfday_start_time: '12:30'
   });
 
   const [showRoleModal, setShowRoleModal] = useState(false);
@@ -626,6 +626,50 @@ const Settings = () => {
                 <span className="text-xs text-slate-400">All shift times are in this timezone</span>
               </div>
 
+              {/* Break Settings */}
+              <div className="px-6 py-4 border-b border-slate-100 bg-teal-50/20">
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="w-6 h-6 rounded bg-teal-100 flex items-center justify-center text-teal-600 text-xs font-bold">B</span>
+                  <label className="text-xs font-bold text-slate-700 uppercase tracking-wider">Break Settings</label>
+                  <span className="text-xs text-slate-400 ml-2">Applied company-wide to all shifts</span>
+                </div>
+                <div className="flex items-center gap-6">
+                  <div className="flex items-center gap-2">
+                    <label className="text-xs font-bold text-teal-800 whitespace-nowrap">Lunch Break</label>
+                    <div className="flex items-center gap-1">
+                      <Input
+                        type="number" min="0" className="w-20 text-center text-sm"
+                        value={breakConfig.lunch_allowed_minutes}
+                        onChange={e => setBreakConfig({ ...breakConfig, lunch_allowed_minutes: parseInt(e.target.value) || 0 })}
+                      />
+                      <span className="text-xs text-slate-400">mins</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <label className="text-xs font-bold text-teal-800 whitespace-nowrap">Tea Break</label>
+                    <div className="flex items-center gap-1">
+                      <Input
+                        type="number" min="0" className="w-20 text-center text-sm"
+                        value={breakConfig.tea_allowed_minutes}
+                        onChange={e => setBreakConfig({ ...breakConfig, tea_allowed_minutes: parseInt(e.target.value) || 0 })}
+                      />
+                      <span className="text-xs text-slate-400">mins</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <label className="text-xs font-bold text-teal-800 whitespace-nowrap">Max Total Break</label>
+                    <div className="flex items-center gap-1">
+                      <Input
+                        type="number" min="0" className="w-20 text-center text-sm"
+                        value={breakConfig.max_break_minutes}
+                        onChange={e => setBreakConfig({ ...breakConfig, max_break_minutes: parseInt(e.target.value) || 0 })}
+                      />
+                      <span className="text-xs text-slate-400">mins</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               <div className="w-full overflow-x-auto">
                 <table className="w-full text-left whitespace-nowrap">
                   <thead className="bg-slate-50/50 uppercase text-xs font-bold text-slate-500 tracking-wider">
@@ -636,7 +680,6 @@ const Settings = () => {
                       <th className="px-6 py-4 border-b border-slate-100">Late Range</th>
                       <th className="px-6 py-4 border-b border-slate-100">Over Late</th>
                       <th className="px-6 py-4 border-b border-slate-100">Half Day</th>
-                      <th className="px-6 py-4 border-b border-slate-100">Breaks</th>
                       <th className="px-6 py-4 border-b border-slate-100 text-right">Actions</th>
                     </tr>
                   </thead>
@@ -664,16 +707,9 @@ const Settings = () => {
                         <td className="px-6 py-4">
                           <Badge variant="default" className="bg-alert-100 text-alert-700 border-alert-200">{shift.halfday_start_time}</Badge>
                         </td>
-                        <td className="px-6 py-4">
-                          <div className="flex flex-col gap-1 text-[11px] font-medium">
-                            <span className="text-teal-700">Lunch: {shift.lunch_allowed_minutes || 45}m</span>
-                            <span className="text-teal-700">Tea: {shift.tea_allowed_minutes || 15}m</span>
-                            <span className="text-teal-600 font-bold">Max: {shift.max_break_minutes || 70}m</span>
-                          </div>
-                        </td>
                         <td className="px-6 py-4 text-right">
                           <div className="flex items-center justify-end space-x-2">
-                            <button onClick={() => { setEditingShift(shift); setShiftFormData({ lunch_allowed_minutes: 45, tea_allowed_minutes: 15, max_break_minutes: 70, ...shift }); setShowShiftModal(true); }} className="p-1.5 text-slate-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors" title="Edit Shift">
+                            <button onClick={() => { setEditingShift(shift); setShiftFormData(shift); setShowShiftModal(true); }} className="p-1.5 text-slate-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors" title="Edit Shift">
                               <Edit size={16} />
                             </button>
                             <button onClick={async () => {
@@ -1110,33 +1146,6 @@ const Settings = () => {
                 type="time" required
                 value={shiftFormData.halfday_start_time}
                 onChange={e => setShiftFormData({...shiftFormData, halfday_start_time: e.target.value})}
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-3 gap-4 pt-4 border-t border-slate-100 bg-teal-50/30 p-4 -mx-4 rounded-b-xl">
-            <div>
-              <label className="text-xs font-bold text-teal-900 tracking-wide uppercase mb-1.5 block">Lunch Break (mins)</label>
-              <Input
-                type="number" min="0" required
-                value={shiftFormData.lunch_allowed_minutes}
-                onChange={e => setShiftFormData({...shiftFormData, lunch_allowed_minutes: parseInt(e.target.value) || 0})}
-              />
-            </div>
-            <div>
-              <label className="text-xs font-bold text-teal-900 tracking-wide uppercase mb-1.5 block">Tea Break (mins)</label>
-              <Input
-                type="number" min="0" required
-                value={shiftFormData.tea_allowed_minutes}
-                onChange={e => setShiftFormData({...shiftFormData, tea_allowed_minutes: parseInt(e.target.value) || 0})}
-              />
-            </div>
-            <div>
-              <label className="text-xs font-bold text-teal-900 tracking-wide uppercase mb-1.5 block">Max Total Break (mins)</label>
-              <Input
-                type="number" min="0" required
-                value={shiftFormData.max_break_minutes}
-                onChange={e => setShiftFormData({...shiftFormData, max_break_minutes: parseInt(e.target.value) || 0})}
               />
             </div>
           </div>

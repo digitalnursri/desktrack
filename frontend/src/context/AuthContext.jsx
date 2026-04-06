@@ -35,6 +35,7 @@ export const AuthProvider = ({ children }) => {
   const [rolePermissions, setRolePermissions] = useState(DEFAULT_ROLE_PERMISSIONS);
   const [deductionTypes, setDeductionTypes] = useState(DEFAULT_DEDUCTION_TYPES);
   const [companyTimezone, setCompanyTimezone] = useState('Asia/Kolkata');
+  const [breakConfig, setBreakConfig] = useState({ lunch_allowed_minutes: 45, tea_allowed_minutes: 15, max_break_minutes: 70 });
 
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat(currencyConfig.locale, {
@@ -64,6 +65,7 @@ export const AuthProvider = ({ children }) => {
       if (s.rolePermissions) setRolePermissions(s.rolePermissions);
       if (s.deductionTypes) setDeductionTypes(s.deductionTypes);
       if (s.companyTimezone) setCompanyTimezone(s.companyTimezone);
+      if (s.breakConfig) setBreakConfig(s.breakConfig);
     } catch (err) {
       console.warn('Failed to fetch company settings (using defaults):', err.message);
     }
@@ -84,6 +86,7 @@ export const AuthProvider = ({ children }) => {
   const updateRolePermissions = (val) => { setRolePermissions(val); saveCompanySetting('rolePermissions', val); };
   const updateCompanyTimezone = (val) => { setCompanyTimezone(val); saveCompanySetting('companyTimezone', val); };
   const updateDeductionTypes = (val) => { setDeductionTypes(val); saveCompanySetting('deductionTypes', val); };
+  const updateBreakConfig = (val) => { setBreakConfig(val); saveCompanySetting('breakConfig', val); };
 
   // Sync attendance status from backend on load or user change
   useEffect(() => {
@@ -264,7 +267,8 @@ export const AuthProvider = ({ children }) => {
       rolePermissions, setRolePermissions: updateRolePermissions, hasPermission,
       currencyConfig, setCurrencyConfig: updateCurrencyConfig, formatCurrency,
       deductionTypes, setDeductionTypes: updateDeductionTypes,
-      companyTimezone, setCompanyTimezone: updateCompanyTimezone
+      companyTimezone, setCompanyTimezone: updateCompanyTimezone,
+      breakConfig, setBreakConfig: updateBreakConfig
     }}>
       {children}
     </AuthContext.Provider>

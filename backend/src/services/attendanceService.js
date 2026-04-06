@@ -32,6 +32,19 @@ const getCompanyTimezone = async (companyId) => {
   return 'Asia/Kolkata';
 };
 
+const getBreakConfig = async (companyId) => {
+  try {
+    const result = await query(
+      'SELECT setting_value FROM company_settings WHERE company_id = $1 AND setting_key = $2',
+      [companyId, 'breakConfig']
+    );
+    if (result.rows.length > 0) {
+      try { return JSON.parse(result.rows[0].setting_value); } catch { return {}; }
+    }
+  } catch (e) {}
+  return { lunch_allowed_minutes: 45, tea_allowed_minutes: 15, max_break_minutes: 70 };
+};
+
 const calculateAttendance = (shift, checkIn, checkOut, events = [], sessions = []) => {
   if (!checkIn) return { status: 'MISSING_ENTRY', flags: ['NO_CHECK_IN'] };
 
@@ -376,17 +389,18 @@ const checkOut = async (attendanceId, companyId, manualCheckOutTime) => {
   const record = attResult.rows[0];
   if (!record) throw new Error('Attendance record not found.');
 
-  const shift = { 
-    shift_start_time: record.shift_start_time, 
-    shift_end_time: record.shift_end_time, 
+  const brkCfg = await getBreakConfig(companyId);
+  const shift = {
+    shift_start_time: record.shift_start_time,
+    shift_end_time: record.shift_end_time,
     total_working_hours: record.total_working_hours,
     grace_minutes: record.grace_minutes,
     late_start_time: record.late_start_time,
     late_end_time: record.late_end_time,
     overlate_start_time: record.overlate_start_time,
     halfday_start_time: record.halfday_start_time,
-    lunch_allowed_minutes: record.lunch_allowed_minutes,
-    tea_allowed_minutes: record.tea_allowed_minutes,
+    lunch_allowed_minutes: brkCfg.lunch_allowed_minutes || 45,
+    tea_allowed_minutes: brkCfg.tea_allowed_minutes || 15,
     company_id: record.company_id,
     employee_id: record.employee_id,
     timezone: await getCompanyTimezone(companyId)
@@ -487,7 +501,8 @@ const updateAttendance = async (attendanceId, companyId, updates) => {
      WHERE es.employee_id = $1 AND es.company_id = $2`,
     [employeeId, companyId]
   );
-  const shift = { ...shiftResult.rows[0], company_id: companyId, employee_id: employeeId, timezone: await getCompanyTimezone(companyId) };
+  const updBrkCfg = await getBreakConfig(companyId);
+  const shift = { ...shiftResult.rows[0], company_id: companyId, employee_id: employeeId, timezone: await getCompanyTimezone(companyId), lunch_allowed_minutes: updBrkCfg.lunch_allowed_minutes || 45, tea_allowed_minutes: updBrkCfg.tea_allowed_minutes || 15 };
 
   const checkInTime = updates.check_in ? new Date(updates.check_in) : (record ? new Date(record.check_in) : new Date());
   const checkOutTime = updates.check_out ? new Date(updates.check_out) : (record?.check_out ? new Date(record.check_out) : null);
@@ -629,6 +644,7 @@ const getDailyAttendance = async (companyId, dateStr) => {
   const shift = shifts.rows[0];
 
   const companyTz = await getCompanyTimezone(companyId);
+  const brkCfg = await getBreakConfig(companyId);
 
   const records = employees.rows.map((emp) => {
     const existing = attendance.rows.find(a => a.employee_id == emp.id);
@@ -643,11 +659,11 @@ const getDailyAttendance = async (companyId, dateStr) => {
       const empSessions = sessions.rows.filter(s => s.employee_id === emp.id);
       const empEvents = events.rows.filter(e => e.employee_id === emp.id);
 
-      const { daily_attendance } = calculateAttendance({ ...shift, employee_id: emp.id, timezone: companyTz }, checkIn, checkOut, empEvents, empSessions);
+      const { daily_attendance } = calculateAttendance({ ...shift, employee_id: emp.id, timezone: companyTz, lunch_allowed_minutes: brkCfg.lunch_allowed_minutes || 45, tea_allowed_minutes: brkCfg.tea_allowed_minutes || 15 }, checkIn, checkOut, empEvents, empSessions);
 
       // Expected checkout = check-in + shift total working hours + excess break time
       const shiftHrs = parseFloat(shift?.total_working_hours || 9);
-      const maxBreakMins = shift?.max_break_minutes || 70;
+      const maxBreakMins = brkCfg.max_break_minutes || 70;
       const breakMins = daily_attendance.total_break_minutes || 0;
       const excessBreakMins = Math.max(0, breakMins - maxBreakMins);
       const expectedOutISO = new Date(checkIn.getTime() + (shiftHrs * 60 + excessBreakMins) * 60 * 1000);
