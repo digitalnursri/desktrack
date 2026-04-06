@@ -835,19 +835,34 @@ const db = {
             rowCount = 1;
           }
         }
-        // [SELECT] Attendance (by date — getDailyAttendance / checkIn existing check)
+        // [SELECT] Attendance (by date — getDailyAttendance / checkIn existing check / monthly range)
         else if (q.includes('from attendance') && (q.includes('check_in::date') || q.includes('attendance_date') || q.includes('check_in like'))) {
-          const dateParam = params[params.length - 1];
-          const day = String(dateParam).replace(/%/g, '').split('T')[0];
+          const isRange = q.includes('>=') && q.includes('<=');
           const hasEmployeeFilter = q.includes('employee_id');
-          resultRows = memoryDB.attendance.filter(a => {
-            const aDate = String(a.attendance_date || a.check_in).split('T')[0];
-            if (aDate !== day) return false;
-            if (hasEmployeeFilter && params.length >= 3) {
-              return a.employee_id == params[0] && a.company_id == params[1];
-            }
-            return a.company_id == params[0];
-          });
+
+          if (isRange) {
+            // Range query: company_id=$1, startDate=$2, endDate=$3
+            const compId = params[0];
+            const startDay = String(params[1]).split('T')[0];
+            const endDay = String(params[2]).split('T')[0];
+            resultRows = memoryDB.attendance.filter(a => {
+              if (a.company_id != compId) return false;
+              const aDate = String(a.attendance_date || a.check_in).split('T')[0];
+              return aDate >= startDay && aDate <= endDay;
+            });
+          } else {
+            // Single date query
+            const dateParam = params[params.length - 1];
+            const day = String(dateParam).replace(/%/g, '').split('T')[0];
+            resultRows = memoryDB.attendance.filter(a => {
+              const aDate = String(a.attendance_date || a.check_in).split('T')[0];
+              if (aDate !== day) return false;
+              if (hasEmployeeFilter && params.length >= 3) {
+                return a.employee_id == params[0] && a.company_id == params[1];
+              }
+              return a.company_id == params[0];
+            });
+          }
           rowCount = resultRows.length;
         }
         else if (q.includes('from employee_shifts')) {
