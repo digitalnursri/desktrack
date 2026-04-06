@@ -20,16 +20,17 @@ const getShifts = async (req, res) => {
 
 const createShift = async (req, res) => {
   const companyId = req.tenantId;
-  const { 
-    name, shift_start_time, shift_end_time, total_working_hours, grace_minutes, 
-    late_start_time, late_end_time, overlate_start_time, halfday_start_time
+  const {
+    name, shift_start_time, shift_end_time, total_working_hours, grace_minutes,
+    late_start_time, late_end_time, overlate_start_time, halfday_start_time,
+    lunch_allowed_minutes, tea_allowed_minutes, max_break_minutes
   } = req.body;
 
   try {
     const result = await query(
-      `INSERT INTO shifts (company_id, name, shift_start_time, shift_end_time, total_working_hours, grace_minutes, late_start_time, late_end_time, overlate_start_time, halfday_start_time)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
-      [companyId, name, shift_start_time, shift_end_time, total_working_hours, grace_minutes, late_start_time, late_end_time, overlate_start_time, halfday_start_time]
+      `INSERT INTO shifts (company_id, name, shift_start_time, shift_end_time, total_working_hours, grace_minutes, late_start_time, late_end_time, overlate_start_time, halfday_start_time, lunch_allowed_minutes, tea_allowed_minutes, max_break_minutes)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING *`,
+      [companyId, name, shift_start_time, shift_end_time, total_working_hours, grace_minutes, late_start_time, late_end_time, overlate_start_time, halfday_start_time, lunch_allowed_minutes || 45, tea_allowed_minutes || 15, max_break_minutes || 70]
     );
     res.status(201).json(result.rows[0]);
   } catch (err) {
@@ -41,17 +42,18 @@ const createShift = async (req, res) => {
 const updateShift = async (req, res) => {
   const companyId = req.tenantId;
   const { id } = req.params;
-  const { 
-    name, shift_start_time, shift_end_time, total_working_hours, grace_minutes, 
-    late_start_time, late_end_time, overlate_start_time, halfday_start_time
+  const {
+    name, shift_start_time, shift_end_time, total_working_hours, grace_minutes,
+    late_start_time, late_end_time, overlate_start_time, halfday_start_time,
+    lunch_allowed_minutes, tea_allowed_minutes, max_break_minutes
   } = req.body;
 
   try {
     const result = await query(
-      `UPDATE shifts 
-       SET name = $1, shift_start_time = $2, shift_end_time = $3, total_working_hours = $4, grace_minutes = $5, late_start_time = $6, late_end_time = $7, overlate_start_time = $8, halfday_start_time = $9
-       WHERE id = $10 AND company_id = $11 RETURNING *`,
-      [name, shift_start_time, shift_end_time, total_working_hours, grace_minutes, late_start_time, late_end_time, overlate_start_time, halfday_start_time, id, companyId]
+      `UPDATE shifts
+       SET name = $1, shift_start_time = $2, shift_end_time = $3, total_working_hours = $4, grace_minutes = $5, late_start_time = $6, late_end_time = $7, overlate_start_time = $8, halfday_start_time = $9, lunch_allowed_minutes = $10, tea_allowed_minutes = $11, max_break_minutes = $12
+       WHERE id = $13 AND company_id = $14 RETURNING *`,
+      [name, shift_start_time, shift_end_time, total_working_hours, grace_minutes, late_start_time, late_end_time, overlate_start_time, halfday_start_time, lunch_allowed_minutes || 45, tea_allowed_minutes || 15, max_break_minutes || 70, id, companyId]
     );
 
     if (result.rows.length === 0) {

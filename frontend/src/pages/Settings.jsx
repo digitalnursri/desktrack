@@ -154,7 +154,7 @@ const Settings = () => {
   ]);
 
   const [shiftFormData, setShiftFormData] = useState({
-    name: '', shift_start_time: '10:00', shift_end_time: '19:00', total_working_hours: 9, grace_minutes: 15, late_start_time: '10:16', late_end_time: '10:59', overlate_start_time: '11:00', halfday_start_time: '12:30'
+    name: '', shift_start_time: '10:00', shift_end_time: '19:00', total_working_hours: 9, grace_minutes: 15, late_start_time: '10:16', late_end_time: '10:59', overlate_start_time: '11:00', halfday_start_time: '12:30', lunch_allowed_minutes: 45, tea_allowed_minutes: 15, max_break_minutes: 70
   });
 
   const [showRoleModal, setShowRoleModal] = useState(false);
@@ -636,6 +636,7 @@ const Settings = () => {
                       <th className="px-6 py-4 border-b border-slate-100">Late Range</th>
                       <th className="px-6 py-4 border-b border-slate-100">Over Late</th>
                       <th className="px-6 py-4 border-b border-slate-100">Half Day</th>
+                      <th className="px-6 py-4 border-b border-slate-100">Breaks</th>
                       <th className="px-6 py-4 border-b border-slate-100 text-right">Actions</th>
                     </tr>
                   </thead>
@@ -662,6 +663,13 @@ const Settings = () => {
                         </td>
                         <td className="px-6 py-4">
                           <Badge variant="default" className="bg-alert-100 text-alert-700 border-alert-200">{shift.halfday_start_time}</Badge>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="flex flex-col gap-1 text-[11px] font-medium">
+                            <span className="text-teal-700">Lunch: {shift.lunch_allowed_minutes || 45}m</span>
+                            <span className="text-teal-700">Tea: {shift.tea_allowed_minutes || 15}m</span>
+                            <span className="text-teal-600 font-bold">Max: {shift.max_break_minutes || 70}m</span>
+                          </div>
                         </td>
                         <td className="px-6 py-4 text-right">
                           <div className="flex items-center justify-end space-x-2">
@@ -1087,10 +1095,10 @@ const Settings = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4 pt-4 border-t border-slate-100 bg-orange-50/30 p-4 -mx-4 rounded-b-xl">
+          <div className="grid grid-cols-2 gap-4 pt-4 border-t border-slate-100 bg-orange-50/30 p-4 -mx-4">
             <div>
               <label className="text-xs font-bold text-orange-900 tracking-wide uppercase mb-1.5 block">Over-Late Start From</label>
-              <Input 
+              <Input
                 type="time" required
                 value={shiftFormData.overlate_start_time}
                 onChange={e => setShiftFormData({...shiftFormData, overlate_start_time: e.target.value})}
@@ -1098,10 +1106,37 @@ const Settings = () => {
             </div>
             <div>
               <label className="text-xs font-bold text-alert-900 tracking-wide uppercase mb-1.5 block">Half-Day Start From</label>
-              <Input 
+              <Input
                 type="time" required
                 value={shiftFormData.halfday_start_time}
                 onChange={e => setShiftFormData({...shiftFormData, halfday_start_time: e.target.value})}
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-3 gap-4 pt-4 border-t border-slate-100 bg-teal-50/30 p-4 -mx-4 rounded-b-xl">
+            <div>
+              <label className="text-xs font-bold text-teal-900 tracking-wide uppercase mb-1.5 block">Lunch Break (mins)</label>
+              <Input
+                type="number" min="0" required
+                value={shiftFormData.lunch_allowed_minutes}
+                onChange={e => setShiftFormData({...shiftFormData, lunch_allowed_minutes: parseInt(e.target.value) || 0})}
+              />
+            </div>
+            <div>
+              <label className="text-xs font-bold text-teal-900 tracking-wide uppercase mb-1.5 block">Tea Break (mins)</label>
+              <Input
+                type="number" min="0" required
+                value={shiftFormData.tea_allowed_minutes}
+                onChange={e => setShiftFormData({...shiftFormData, tea_allowed_minutes: parseInt(e.target.value) || 0})}
+              />
+            </div>
+            <div>
+              <label className="text-xs font-bold text-teal-900 tracking-wide uppercase mb-1.5 block">Max Total Break (mins)</label>
+              <Input
+                type="number" min="0" required
+                value={shiftFormData.max_break_minutes}
+                onChange={e => setShiftFormData({...shiftFormData, max_break_minutes: parseInt(e.target.value) || 0})}
               />
             </div>
           </div>

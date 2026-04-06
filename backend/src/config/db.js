@@ -329,7 +329,8 @@ const db = {
         }
         // [UPDATE] Shifts
         else if (q.includes('update shifts')) {
-          const id = params[9];
+          // Params: name=$1, start=$2, end=$3, hours=$4, grace=$5, late_s=$6, late_e=$7, overlate=$8, halfday=$9, lunch=$10, tea=$11, max_break=$12, id=$13, company=$14
+          const id = params[12] || params[9]; // new layout: $13=id or old layout: $10=id
           const index = memoryDB.shifts.findIndex(s => s.id == id);
           if (index !== -1) {
             memoryDB.shifts[index] = {
@@ -342,7 +343,10 @@ const db = {
               late_start_time: params[5],
               late_end_time: params[6],
               overlate_start_time: params[7],
-              halfday_start_time: params[8]
+              halfday_start_time: params[8],
+              lunch_allowed_minutes: parseInt(params[9]) || 45,
+              tea_allowed_minutes: parseInt(params[10]) || 15,
+              max_break_minutes: parseInt(params[11]) || 70
             };
             saveToDisk();
             resultRows = [memoryDB.shifts[index]];
