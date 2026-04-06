@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
-import { Badge } from '../components/ui/Badge';
+import { getStatusConfig } from '../utils/statusConfig';
 
 // Live ticking timer for checked-in employees
 const LiveTimer = ({ checkInTime, breakMins = 0 }) => {
@@ -63,19 +63,13 @@ const LiveBreakTimer = ({ checkOutTime, baseMins = 0, expectedOut }) => {
 };
 
 const getStatusBadge = (status, reason = '') => {
-  const s = (status || '').toUpperCase().trim();
-  switch(s) {
-    case 'ON TIME': case 'PRESENT': case 'COMPLETE': return <Badge variant="success" title={reason}>On Time (P)</Badge>;
-    case 'LATE': case 'LATE_ARRIVAL': return <Badge variant="warning" title={reason}>Late (LT)</Badge>;
-    case 'OVER LATE': case 'OVERLATE': return <Badge variant="danger" className="bg-orange-500 text-white border-none" title={reason}>Over Late (OL)</Badge>;
-    case 'ABSENT': return <Badge variant="danger" title={reason}>Absent (A)</Badge>;
-    case 'HALF DAY': case 'HALFDAY': return <Badge variant="primary" className="bg-rose-600 text-white border-none" title={reason}>Half Day (HD)</Badge>;
-    case 'INCOMPLETE': return <Badge variant="warning" className="bg-blue-500 text-white border-none" title={reason}>Active</Badge>;
-    case 'LEAVE': return <Badge variant="danger" className="bg-slate-500 text-white border-none" title={reason}>Leave (L)</Badge>;
-    case 'OFFICE HOLIDAY': return <Badge variant="warning" className="bg-amber-500 text-white border-none" title={reason}>Office Holiday (OH)</Badge>;
-    case 'PUBLIC HOLIDAY': return <Badge variant="warning" className="bg-amber-400 text-white border-none" title={reason}>Public Holiday (H)</Badge>;
-    default: return <Badge title={reason}>{status}</Badge>;
-  }
+  const cfg = getStatusConfig(status);
+  return (
+    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold border ${cfg.tw}`} title={reason}>
+      <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: cfg.color }} />
+      {cfg.label} ({cfg.short})
+    </span>
+  );
 };
 
 const Attendance = () => {

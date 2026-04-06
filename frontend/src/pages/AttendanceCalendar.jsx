@@ -2,22 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, X, Clock, FileText, Search, Cake, Award } from 'lucide-react';
 import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { STATUS_CONFIG, getStatusConfig } from '../utils/statusConfig';
 
 const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 const MONTH_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const DAY_HEADERS = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
 
-const STATUS_MAP = {
-  'PRESENT':   { color: '#16a34a', bg: '#dcfce7', label: 'Present', short: 'P' },
-  'LATE':      { color: '#d97706', bg: '#fef3c7', label: 'Late', short: 'L' },
-  'OVER LATE': { color: '#ea580c', bg: '#ffedd5', label: 'Over Late', short: 'OL' },
-  'HALF DAY':  { color: '#9333ea', bg: '#f3e8ff', label: 'Half Day', short: 'HD' },
-  'ABSENT':    { color: '#dc2626', bg: '#fee2e2', label: 'Absent', short: 'A' },
-  'WEEKEND':   { color: '#94a3b8', bg: '#f1f5f9', label: 'Weekend', short: 'W' },
-  '-':         { color: '#e2e8f0', bg: 'transparent', label: '-', short: '' },
-};
-
-const getS = (status) => STATUS_MAP[status] || STATUS_MAP['-'];
+const getS = (status) => getStatusConfig(status);
 
 // Mini calendar for sidebar
 const MiniCalendar = ({ month, year, today, onDayClick, selectedDate }) => {
@@ -194,12 +185,15 @@ const AttendanceCalendar = () => {
         <div className="p-4 border-t border-slate-100">
           <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-2">Legend</p>
           <div className="grid grid-cols-2 gap-1">
-            {Object.entries(STATUS_MAP).filter(([k]) => k !== '-').map(([key, val]) => (
-              <div key={key} className="flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ backgroundColor: val.color }} />
-                <span className="text-[10px] text-slate-500">{val.label}</span>
-              </div>
-            ))}
+            {['PRESENT','LATE','OVER LATE','HALF DAY','ABSENT','WEEKEND'].map(key => {
+              const val = getStatusConfig(key);
+              return (
+                <div key={key} className="flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ backgroundColor: val.color }} />
+                  <span className="text-[10px] text-slate-500">{val.label}</span>
+                </div>
+              );
+            })}
             <div className="flex items-center gap-1.5">
               <Cake size={10} className="text-pink-500 shrink-0" />
               <span className="text-[10px] text-slate-500">Birthday</span>

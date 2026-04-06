@@ -7,6 +7,7 @@ import { Card } from '../components/ui/Card';
 import { Badge } from '../components/ui/Badge';
 import { Modal } from '../components/ui/Modal';
 import { motion } from 'framer-motion';
+import { getStatusConfig } from '../utils/statusConfig';
 
 // Live work timer for dashboard
 const DashboardLiveTimer = ({ checkIn, breakMins = 0, isLive, netMins }) => {
@@ -167,18 +168,14 @@ const Dashboard = () => {
         const active = Array.isArray(attendanceData) ? attendanceData
           .filter(a => a.check_in && a.check_in !== '-' && !String(a.id).startsWith('no-ref-'))
           .map(a => {
-            const ds = (a.displayStatus || a.arrival_status || a.status || '').toUpperCase();
-            let variant = 'default';
-            if (ds.includes('ON TIME') || ds === 'COMPLETE') variant = 'success';
-            else if (ds.includes('LATE') && !ds.includes('OVER') && !ds.includes('HALF')) variant = 'warning';
-            else if (ds.includes('OVER LATE') || ds.includes('OVERLATE')) variant = 'danger';
-            else if (ds.includes('HALF')) variant = 'danger';
+            const statusStr = a.displayStatus || a.arrival_status || a.status || 'Present';
+            const cfg = getStatusConfig(statusStr);
             return {
               name: a.name,
               time: new Date(a.check_in).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'Asia/Kolkata' }),
-              status: a.displayStatus || a.arrival_status || a.status || 'Present',
+              status: statusStr,
               role: a.role || 'Employee',
-              variant
+              cfg
             };
           }) : [];
 
@@ -218,11 +215,11 @@ const Dashboard = () => {
           ],
           'Present Today': [
             { col1: 'Name', col2: 'Check-in Time', col3: 'Status' },
-            ...active.map(e => ({ v1: e.name, v2: e.time, v3: e.status, badge: e.variant }))
+            ...active.map(e => ({ v1: e.name, v2: e.time, v3: e.cfg.label, statusCfg: e.cfg }))
           ],
           'Late Arrivals': [
             { col1: 'Name', col2: 'Arrival Time', col3: 'Status' },
-            ...active.filter(e => e.status.includes('Late')).map(e => ({ v1: e.name, v2: e.time, v3: e.status, badge: 'warning' }))
+            ...active.filter(e => e.status.toUpperCase().includes('LATE')).map(e => ({ v1: e.name, v2: e.time, v3: e.cfg.label, statusCfg: e.cfg }))
           ]
         });
 
@@ -505,7 +502,9 @@ const Dashboard = () => {
                     <p className="text-xs text-slate-500 font-medium">{usr.role} &bull; Check-in: {usr.time}</p>
                   </div>
                 </div>
-                <Badge variant={usr.variant}>{usr.status}</Badge>
+                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border ${usr.cfg.tw}`}>
+                  <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: usr.cfg.color }} />{usr.cfg.label}
+                </span>
               </div>
             ))}
           </div>
@@ -529,7 +528,13 @@ const Dashboard = () => {
                     <td className="px-5 py-3 font-bold text-slate-900 text-sm">{row.v1}</td>
                     <td className="px-5 py-3 font-medium text-slate-600 text-sm">{row.v2}</td>
                     <td className="px-5 py-3 text-right">
-                      <Badge variant={row.badge}>{row.v3}</Badge>
+                      {row.statusCfg ? (
+                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border ${row.statusCfg.tw}`}>
+                          <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: row.statusCfg.color }} />{row.v3}
+                        </span>
+                      ) : (
+                        <Badge variant={row.badge || 'default'}>{row.v3}</Badge>
+                      )}
                     </td>
                   </tr>
                 ))}
