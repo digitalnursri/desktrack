@@ -123,7 +123,8 @@ const DEFAULT_CUSTOM_FIELDS = [
   { id: 6, module_name: 'employees', field_name: 'Designation', field_type: 'dropdown', is_required: true, company_id: 1, field_id: 'designation_id' },
   { id: 7, module_name: 'employees', field_name: 'Assigned Shift', field_type: 'dropdown', is_required: true, company_id: 1, field_id: 'shift_id' },
   { id: 8, module_name: 'employees', field_name: 'Joining Date', field_type: 'date', is_required: true, company_id: 1, field_id: 'joining_date' },
-  { id: 9, module_name: 'employees', field_name: 'Role', field_type: 'dropdown', is_required: true, company_id: 1, field_id: 'role', options: '[{"label":"Employee","value":"EMPLOYEE"},{"label":"HR","value":"HR"},{"label":"Manager","value":"MANAGER"},{"label":"Super Admin","value":"SUPER_ADMIN"}]' }
+  { id: 9, module_name: 'employees', field_name: 'Role', field_type: 'dropdown', is_required: true, company_id: 1, field_id: 'role', options: '[{"label":"Employee","value":"EMPLOYEE"},{"label":"HR","value":"HR"},{"label":"Manager","value":"MANAGER"},{"label":"Super Admin","value":"SUPER_ADMIN"}]' },
+  { id: 10, module_name: 'employees', field_name: 'Date of Birth', field_type: 'date', is_required: false, company_id: 1, field_id: 'date_of_birth' }
 ];
 
 const db = {

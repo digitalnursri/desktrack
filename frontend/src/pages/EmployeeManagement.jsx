@@ -60,7 +60,7 @@ const EmployeeManagement = () => {
   const STANDARD_KEYS = new Set([
     'first_name', 'last_name', 'email', 'employee_code',
     'designation_id', 'department_id', 'salary_info', 'joining_date',
-    'shift_id', 'role', 'status'
+    'date_of_birth', 'shift_id', 'role', 'status'
   ]);
 
   const splitCustomValues = (values) => {
@@ -353,7 +353,11 @@ const EmployeeManagement = () => {
             fields={fields} 
             initialValues={{
               ...selectedEmployee,
-              joining_date: selectedEmployee.joining_date ? selectedEmployee.joining_date.split('T')[0] : ''
+              joining_date: selectedEmployee.joining_date ? selectedEmployee.joining_date.split('T')[0] : '',
+              date_of_birth: selectedEmployee.date_of_birth ? selectedEmployee.date_of_birth.split('T')[0] : '',
+              department_id: selectedEmployee.department_id ? String(selectedEmployee.department_id) : '',
+              designation_id: selectedEmployee.designation_id ? String(selectedEmployee.designation_id) : '',
+              shift_id: selectedEmployee.shift_id ? String(selectedEmployee.shift_id) : ''
             }} 
             onSubmit={handleEditEmployee} 
             isLoading={isSubmitting}

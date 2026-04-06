@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 
@@ -9,6 +9,12 @@ import { Input } from '../ui/Input';
 const DynamicForm = ({ fields, initialValues = {}, onSubmit, isLoading, onCancel }) => {
   const [values, setValues] = useState(initialValues);
   const [errors, setErrors] = useState({});
+
+  // Re-sync when initialValues change (e.g. different employee selected for edit)
+  useEffect(() => {
+    setValues(initialValues);
+    setErrors({});
+  }, [JSON.stringify(initialValues)]);
 
   const handleChange = (id, value) => {
     setValues(prev => ({ ...prev, [id]: value }));
@@ -77,7 +83,7 @@ const DynamicForm = ({ fields, initialValues = {}, onSubmit, isLoading, onCancel
                 >
                   <option value="" disabled className="text-slate-400">Select an option...</option>
                   {field.options?.map((opt, i) => (
-                    <option key={i} value={typeof opt === 'object' ? opt.value : opt}>
+                    <option key={i} value={String(typeof opt === 'object' ? opt.value : opt)}>
                       {typeof opt === 'object' ? opt.label : opt}
                     </option>
                   ))}
