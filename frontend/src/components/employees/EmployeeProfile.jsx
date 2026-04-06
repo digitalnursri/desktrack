@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Mail, Phone, Calendar, Shield, MapPin, Briefcase, Clock, FileText, User, X, List, Edit2, Save, ArrowLeft } from 'lucide-react';
+import { Mail, Phone, Calendar, Shield, MapPin, Briefcase, Clock, FileText, User, Cake, Award, Edit2, ArrowLeft } from 'lucide-react';
 import { Badge } from '../ui/Badge';
 import { Button } from '../ui/Button';
 import DynamicForm from '../forms/DynamicForm';
@@ -28,13 +28,12 @@ const EmployeeProfile = ({ employee, fields, onUpdate }) => {
   const STANDARD_KEYS = new Set([
     'first_name', 'last_name', 'email', 'employee_code',
     'designation_id', 'department_id', 'salary_info', 'joining_date',
-    'shift_id', 'role', 'status'
+    'date_of_birth', 'shift_id', 'role', 'status'
   ]);
 
   const handleEditSubmit = async (values) => {
     setIsSubmitting(true);
     try {
-      // Split standard vs custom field values
       const standard = {};
       const customDbIds = {};
       Object.entries(values).forEach(([key, val]) => {
@@ -50,7 +49,6 @@ const EmployeeProfile = ({ employee, fields, onUpdate }) => {
 
       await api.put(`/employees/${employee.id}`, { ...standard, custom_field_values: customDbIds });
 
-      // If the current user's role was changed, update the session immediately
       if (user && employee.email === user.email && values.role && values.role !== user.role) {
         const updatedUser = { ...user, role: values.role };
         localStorage.setItem('user', JSON.stringify(updatedUser));
@@ -68,19 +66,58 @@ const EmployeeProfile = ({ employee, fields, onUpdate }) => {
     }
   };
 
-  // Group fields to display nicely
-  const standardFields = [
+  const fmtDate = (d) => {
+    if (!d) return 'N/A';
+    try { return new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' }); }
+    catch { return 'N/A'; }
+  };
+
+  // All profile info fields — single unified list, no duplicates
+  const allInfoFields = [
     { icon: Mail, label: 'Email Address', value: employee.email, id: 'email' },
     { icon: Briefcase, label: 'Employee ID', value: employee.employee_code, id: 'employee_code' },
     { icon: Shield, label: 'Designation', value: employee.designation_name, id: 'designation_id' },
     { icon: MapPin, label: 'Department', value: employee.department_name, id: 'department_id' },
     { icon: Clock, label: 'Assigned Shift', value: employee.shift_name, id: 'shift_id' },
-    { icon: Calendar, label: 'Joining Date', value: employee.joining_date ? new Date(employee.joining_date).toLocaleDateString() : 'N/A', id: 'joining_date' },
+    { icon: Calendar, label: 'Joining Date', value: fmtDate(employee.joining_date), id: 'joining_date' },
+    { icon: Cake, label: 'Date of Birth', value: fmtDate(employee.date_of_birth), id: 'date_of_birth' },
   ];
 
-  // Identifiers for custom fields that aren't in the standard list above
-  const standardIds = ['email', 'employee_code', 'first_name', 'last_name', 'designation_id', 'department_id', 'shift_id', 'joining_date', 'status', 'role'];
-  const customFieldsToDisplay = fields?.filter(f => !standardIds.includes(f.field_id)) || [];
+  // IDs already shown in the info section above (+ header fields)
+  const shownIds = new Set([
+    'email', 'employee_code', 'designation_id', 'department_id', 'shift_id',
+    'joining_date', 'date_of_birth', 'first_name', 'last_name', 'status', 'role'
+  ]);
+
+  // Only truly custom fields (not already displayed above)
+  const customFields = fields?.filter(f => !shownIds.has(f.field_id)) || [];
+
+  // Add custom fields to the info list
+  customFields.forEach(f => {
+    const val = employee[f.field_id];
+    if (val !== undefined && val !== null && val !== '') {
+      allInfoFields.push({
+        icon: f.field_type === 'date' ? Calendar : f.field_type === 'boolean' ? FileText : Phone,
+        label: f.field_name,
+        value: f.field_type === 'date' ? fmtDate(val) : String(val),
+        id: f.field_id,
+        color: 'text-indigo-500'
+      });
+    }
+  });
+
+  // Joining anniversary
+  const joinYears = employee.joining_date ? Math.floor((new Date() - new Date(employee.joining_date)) / (365.25 * 24 * 60 * 60 * 1000)) : 0;
+
+  // Edit form initial values with proper formatting
+  const editInitialValues = {
+    ...employee,
+    joining_date: employee.joining_date ? employee.joining_date.split('T')[0] : '',
+    date_of_birth: employee.date_of_birth ? employee.date_of_birth.split('T')[0] : '',
+    department_id: employee.department_id ? String(employee.department_id) : '',
+    designation_id: employee.designation_id ? String(employee.designation_id) : '',
+    shift_id: employee.shift_id ? String(employee.shift_id) : ''
+  };
 
   return (
     <div className="flex flex-col bg-white overflow-hidden min-h-[600px]">
@@ -106,7 +143,7 @@ const EmployeeProfile = ({ employee, fields, onUpdate }) => {
             <p className="text-slate-500 font-medium mt-2 flex items-center gap-2 flex-wrap">
               <span className="bg-primary-50 text-primary-700 px-3 py-1 rounded-full text-xs font-bold ring-1 ring-primary-100">{employee.role}</span>
               <span className="text-slate-300">/</span>
-              <span className="font-semibold text-slate-700">{employee.designation_name}</span> 
+              <span className="font-semibold text-slate-700">{employee.designation_name}</span>
               <span className="text-slate-400 font-normal">in</span>
               <span className="font-semibold text-slate-700">{employee.department_name}</span>
             </p>
@@ -127,15 +164,15 @@ const EmployeeProfile = ({ employee, fields, onUpdate }) => {
         </div>
       </div>
 
-      {/* Main Content Area */}
+      {/* Main Content */}
       <div className="flex-1 p-8 bg-slate-50/10">
         {isEditing ? (
           <div className="max-w-4xl mx-auto bg-white p-8 rounded-2xl border border-slate-100 shadow-sm animate-in fade-in slide-in-from-bottom-4 duration-500">
             <h3 className="text-lg font-bold text-slate-900 mb-8 border-b border-slate-100 pb-4">Edit Employee Information</h3>
-            <DynamicForm 
-              fields={fields} 
-              initialValues={employee} 
-              onSubmit={handleEditSubmit} 
+            <DynamicForm
+              fields={fields}
+              initialValues={editInitialValues}
+              onSubmit={handleEditSubmit}
               isLoading={isSubmitting}
               onCancel={() => setIsEditing(false)}
             />
@@ -143,60 +180,58 @@ const EmployeeProfile = ({ employee, fields, onUpdate }) => {
         ) : (
           <div className="max-w-6xl mx-auto space-y-10 animate-in fade-in duration-500">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
-              
-              {/* Left Column: Basic Details */}
-              <div className="lg:col-span-2 space-y-10">
+
+              {/* Left: All Information */}
+              <div className="lg:col-span-2">
                 <section>
                   <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-6 flex items-center gap-3 px-1">
                     <span className="w-1 h-3 bg-primary-500 rounded-full"></span>
-                    <User size={14} className="text-primary-500" /> Core Information
+                    <User size={14} className="text-primary-500" /> Employee Information
                   </h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 bg-white p-2 rounded-2xl">
-                    {standardFields.map((field, idx) => (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-white p-3 rounded-2xl">
+                    {allInfoFields.map((field, idx) => (
                       <DetailItem key={idx} {...field} />
                     ))}
                   </div>
                 </section>
-
-                {customFieldsToDisplay.length > 0 && (
-                  <section>
-                    <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-6 flex items-center gap-3 px-1">
-                      <span className="w-1 h-3 bg-indigo-500 rounded-full"></span>
-                      <FileText size={14} className="text-indigo-500" /> Additional Records
-                    </h3>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 bg-white p-2 rounded-2xl">
-                      {customFieldsToDisplay.map((field) => (
-                        <DetailItem 
-                          key={field.id} 
-                          icon={field.field_type === 'date' ? Calendar : field.field_type === 'dropdown' ? List : FileText} 
-                          label={field.field_name}
-                          value={employee[field.field_id]}
-                          color="text-indigo-500"
-                        />
-                      ))}
-                    </div>
-                  </section>
-                )}
               </div>
 
-              {/* Right Column: Mini Widgets */}
-              <div className="space-y-8">
+              {/* Right: Work Summary */}
+              <div className="space-y-6">
                 <div className="bg-white rounded-2xl p-6 border border-slate-100 shadow-sm">
                   <h4 className="text-[11px] font-bold text-slate-400 uppercase mb-6 tracking-wider text-center flex items-center justify-center gap-2">
                     <Clock size={12} /> Work Summary
                   </h4>
-                  <div className="space-y-6">
+                  <div className="space-y-4">
                     <div className="flex flex-col space-y-2 p-3 rounded-xl bg-slate-50/50">
                       <span className="text-slate-400 font-bold text-[10px] uppercase tracking-wider">Current Shift</span>
                       <span className="font-bold text-slate-800 text-sm flex items-center gap-2">
                         <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
-                        {employee.shift_name}
+                        {employee.shift_name || 'Not assigned'}
                       </span>
                     </div>
                     <div className="flex flex-col space-y-2 p-3 rounded-xl bg-slate-50/50">
                       <span className="text-slate-400 font-bold text-[10px] uppercase tracking-wider">Join Date</span>
-                      <span className="font-bold text-slate-800 text-sm">{employee.joining_date ? new Date(employee.joining_date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : 'N/A'}</span>
+                      <span className="font-bold text-slate-800 text-sm">{fmtDate(employee.joining_date)}</span>
                     </div>
+                    {joinYears > 0 && (
+                      <div className="flex items-center gap-3 p-3 rounded-xl bg-indigo-50/50">
+                        <Award size={16} className="text-indigo-500" />
+                        <div>
+                          <span className="text-slate-400 font-bold text-[10px] uppercase tracking-wider block">Tenure</span>
+                          <span className="font-bold text-indigo-700 text-sm">{joinYears} year{joinYears > 1 ? 's' : ''}</span>
+                        </div>
+                      </div>
+                    )}
+                    {employee.date_of_birth && (
+                      <div className="flex items-center gap-3 p-3 rounded-xl bg-pink-50/50">
+                        <Cake size={16} className="text-pink-500" />
+                        <div>
+                          <span className="text-slate-400 font-bold text-[10px] uppercase tracking-wider block">Birthday</span>
+                          <span className="font-bold text-pink-700 text-sm">{fmtDate(employee.date_of_birth)}</span>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
