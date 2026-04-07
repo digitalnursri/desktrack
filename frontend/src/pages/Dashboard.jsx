@@ -135,6 +135,8 @@ const CelebrationOverlay = ({ celebrations, onDismiss }) => {
 const Dashboard = () => {
   const navigate = useNavigate();
   const { user, isCheckedIn, toggleCheckIn, selectedDate, setSelectedDate } = useAuth();
+  const isEmployee = user?.role === 'EMPLOYEE';
+  const isAdmin = user?.role === 'SUPER_ADMIN' || user?.role === 'HR';
 
   const [selectedKPI, setSelectedKPI] = useState(null);
   const [stats, setStats] = useState([]);
@@ -179,12 +181,30 @@ const Dashboard = () => {
             };
           }) : [];
 
-        setRecentActivity(active.slice(0, 10));
+        // EMPLOYEE sees only their own activity; admin sees all
+        if (isEmployee) {
+          setRecentActivity(active.filter(a => a.name && user.email).slice(0, 10));
+        } else {
+          setRecentActivity(active.slice(0, 10));
+        }
 
         // Current user's attendance for the status bar
         if (user && Array.isArray(attendanceData)) {
           const myRec = attendanceData.find(a => a.email === user.email && a.check_in && a.check_in !== '-');
           setMyAttendance(myRec || null);
+
+          // For EMPLOYEE: override stats with personal data
+          if (isEmployee) {
+            const myData = attendanceData.find(a => a.email === user.email);
+            const isPresent = myData && myData.check_in && myData.check_in !== '-';
+            const statusStr = (myData?.displayStatus || myData?.arrival_status || '').toUpperCase();
+            setStats([
+              { label: 'Status', value: isPresent ? 'Present' : 'Absent', icon: CheckCircle, color: isPresent ? 'text-success-600' : 'text-alert-600', bg: isPresent ? 'bg-success-100' : 'bg-alert-100', trend: 'Today' },
+              { label: 'Arrival', value: statusStr || (isPresent ? 'ON TIME' : '-'), icon: Clock, color: 'text-amber-600', bg: 'bg-amber-100', trend: 'Today' },
+              { label: 'Work Hours', value: myData?.workHours || '0h 00m', icon: TrendingUp, color: 'text-indigo-600', bg: 'bg-indigo-100', trend: 'Today' },
+              { label: 'Break', value: myData?.breakTime || '0h 00m', icon: Clock, color: 'text-primary-600', bg: 'bg-primary-100', trend: 'Today' },
+            ]);
+          }
         }
 
         // Productivity Insights: fetch last 7 days

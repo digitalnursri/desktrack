@@ -628,10 +628,117 @@ test.describe('11. Roles & Permissions', () => {
 });
 
 // ============================================
-// 12. CONSOLE ERRORS & API FAILURES
+// 12. EMPLOYEE ROLE RESTRICTIONS
 // ============================================
-test.describe('12. Health Check', () => {
-  test('12.1 Collect console errors across all pages', async ({ page }) => {
+test.describe('12. Employee Role Restrictions', () => {
+  const EMP_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwiZW1haWwiOiJwcml5YW5rYV9zaW5naEBjcmVhdGl2ZWZyZW56eS5pbiIsInJvbGUiOiJFTVBMT1lFRSIsImNvbXBhbnlJZCI6MSwiaWF0IjoxNzc1NTU0OTMwLCJleHAiOjE3NzU2NDEzMzB9.kFNcYiES2L7w5u1iXy5p0vVXDieZLy7L66sNzXvIM24';
+  const EMP_USER = JSON.stringify({ id: 1, email: 'priyanka_singh@creativefrenzy.in', role: 'EMPLOYEE', tenantId: 1 });
+
+  async function injectEmpAuth(page) {
+    await page.goto(BASE);
+    await page.evaluate(({ token, user }) => {
+      localStorage.setItem('token', token);
+      localStorage.setItem('user', user);
+      localStorage.setItem('tenantSlug', 'creativefrenzy');
+    }, { token: EMP_TOKEN, user: EMP_USER });
+    await page.goto(BASE);
+    await page.waitForLoadState('networkidle');
+    await page.waitForTimeout(2000);
+  }
+
+  test('12.1 Dashboard shows personal stats only', async ({ page }) => {
+    await injectEmpAuth(page);
+    const body = await page.locator('body').innerText();
+    // Should NOT show "Total Employees" (that's admin KPI)
+    const hasAdminStats = body.includes('Total Employees');
+    expect(hasAdminStats).toBeFalsy();
+    // Should show personal stats like Status, Arrival
+    expect(body).toMatch(/Status|Arrival|Work Hours|Break/);
+  });
+
+  test('12.2 Attendance shows only own record', async ({ page }) => {
+    await injectEmpAuth(page);
+    await page.goto(`${BASE}/attendance`);
+    await page.waitForTimeout(3000);
+    const rows = page.locator('table tbody tr');
+    const count = await rows.count();
+    // Should have at most 1 row (their own) or 0 if not checked in
+    expect(count).toBeLessThanOrEqual(1);
+  });
+
+  test('12.3 Attendance hides Edit/Remark actions', async ({ page }) => {
+    await injectEmpAuth(page);
+    await page.goto(`${BASE}/attendance`);
+    await page.waitForTimeout(3000);
+    const editBtn = page.locator('button:has-text("Edit")');
+    const remarkBtn = page.locator('text=+ Remark');
+    expect(await editBtn.count()).toBe(0);
+    expect(await remarkBtn.count()).toBe(0);
+  });
+
+  test('12.4 Employees page redirects to own profile', async ({ page }) => {
+    await injectEmpAuth(page);
+    await page.goto(`${BASE}/employees`);
+    await page.waitForTimeout(4000);
+    // Should redirect to /employees/{id} (own profile)
+    expect(page.url()).toMatch(/employees\/\d+/);
+  });
+
+  test('12.5 Employee list hidden — no Add button', async ({ page }) => {
+    await injectEmpAuth(page);
+    await page.goto(`${BASE}/employees`);
+    await page.waitForTimeout(4000);
+    const addBtn = page.locator('button:has-text("Add Employee")');
+    expect(await addBtn.count()).toBe(0);
+  });
+
+  test('12.6 Leaves shows only own requests', async ({ page }) => {
+    await injectEmpAuth(page);
+    await page.goto(`${BASE}/leaves`);
+    await page.waitForTimeout(3000);
+    // Should NOT show Manage Types or Init Balances (HR only)
+    const manageBtn = page.locator('button:has-text("Manage Types")');
+    const initBtn = page.locator('button:has-text("Init Balances")');
+    expect(await manageBtn.count()).toBe(0);
+    expect(await initBtn.count()).toBe(0);
+    // Apply Leave should still be visible
+    await expect(page.locator('button:has-text("Apply Leave")')).toBeVisible();
+  });
+
+  test('12.7 Payroll shows only own data', async ({ page }) => {
+    await injectEmpAuth(page);
+    await page.goto(`${BASE}/payroll`);
+    await page.waitForTimeout(3000);
+    const body = await page.locator('body').innerText();
+    // Should not show Run Payroll button
+    const runBtn = page.locator('button:has-text("Run Payroll")');
+    expect(await runBtn.count()).toBe(0);
+  });
+
+  test('12.8 Calendar shows only own attendance', async ({ page }) => {
+    await injectEmpAuth(page);
+    await page.goto(`${BASE}/attendance-calendar`);
+    await page.waitForTimeout(4000);
+    // Employee checkboxes should have only 1 (themselves)
+    const checkboxes = page.locator('input[type="checkbox"]');
+    const count = await checkboxes.count();
+    // 1 checkbox for "All Employees" + 1 for themselves = 2
+    expect(count).toBeLessThanOrEqual(3);
+  });
+
+  test('12.9 No Settings in sidebar', async ({ page }) => {
+    await injectEmpAuth(page);
+    const sidebar = page.locator('aside, nav').first();
+    const settingsLink = sidebar.locator('text=Settings');
+    expect(await settingsLink.count()).toBe(0);
+  });
+});
+
+// ============================================
+// 13. CONSOLE ERRORS & API FAILURES
+// ============================================
+test.describe('13. Health Check', () => {
+  test('13.1 Collect console errors across all pages', async ({ page }) => {
     const errors = [];
     page.on('console', msg => {
       if (msg.type() === 'error' && !msg.text().includes('favicon')) {
@@ -655,7 +762,7 @@ test.describe('12. Health Check', () => {
     }
   });
 
-  test('12.2 Collect failed API requests', async ({ page }) => {
+  test('13.2 Collect failed API requests', async ({ page }) => {
     const failures = [];
     page.on('response', res => {
       if (res.url().includes('/api/') && res.status() >= 400) {

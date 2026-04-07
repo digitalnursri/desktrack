@@ -55,15 +55,24 @@ const AttendanceCalendar = () => {
   const [detailPopup, setDetailPopup] = useState(null); // { type: 'day', dateStr, records } or { type: 'entry', emp, dateStr, rec }
   const [empSearch, setEmpSearch] = useState('');
   const [selectedDate, setSelectedDate] = useState(null);
+  const isEmployee = user?.role === 'EMPLOYEE';
 
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
       try {
         const res = await api.get(`/attendance/monthly?month=${month}&year=${year}`);
-        setData(res.data);
+        let resData = res.data;
+        // EMPLOYEE: filter to only their own data
+        if (isEmployee && user?.email) {
+          const myEmp = resData.employees.find(e => e.email === user.email);
+          if (myEmp) {
+            resData = { ...resData, employees: [myEmp] };
+          }
+        }
+        setData(resData);
         const vis = {};
-        res.data.employees.forEach(e => { vis[e.id] = true; });
+        resData.employees.forEach(e => { vis[e.id] = true; });
         setVisibleEmps(vis);
       } catch (err) {
         console.error('Failed to fetch monthly attendance:', err);

@@ -47,8 +47,25 @@ const Leaves = () => {
         api.get(`/leaves/balances?year=${currentYear}`)
       ]);
       setLeaveTypes(typesRes.data || []);
-      setRequests(reqRes.data || []);
-      setBalances(balRes.data || []);
+      const allReqs = reqRes.data || [];
+      const allBals = balRes.data || [];
+      // EMPLOYEE: filter to only their own data using employee_id lookup
+      if (!isHR && user?.email) {
+        try {
+          const empRes = await api.get('/employees');
+          const myEmp = (empRes.data || []).find(e => e.email === user.email);
+          if (myEmp) {
+            setRequests(allReqs.filter(r => r.employee_id === myEmp.id));
+            setBalances(allBals.filter(b => b.employee_id === myEmp.id));
+          } else {
+            setRequests(allReqs);
+            setBalances(allBals);
+          }
+        } catch { setRequests(allReqs); setBalances(allBals); }
+      } else {
+        setRequests(allReqs);
+        setBalances(allBals);
+      }
     } catch (err) {
       console.error('Fetch leaves error:', err);
     }

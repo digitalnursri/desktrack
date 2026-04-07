@@ -16,6 +16,7 @@ import { motion } from 'framer-motion';
 const EmployeeManagement = () => {
   const navigate = useNavigate();
   const { user, selectedDate, setSelectedDate, hasPermission } = useAuth();
+  const isEmployee = user?.role === 'EMPLOYEE';
   const [employees, setEmployees] = useState([]);
   const [fields, setFields] = useState([]);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -43,7 +44,15 @@ const EmployeeManagement = () => {
         api.get('/custom-fields?module=employees').catch(() => ({ data: [] }))
       ]);
       
-      setEmployees(empRes.data);
+      // EMPLOYEE: only show their own record
+      if (isEmployee && user?.email) {
+        const myEmp = (empRes.data || []).find(e => e.email === user.email);
+        setEmployees(myEmp ? [myEmp] : []);
+        // Redirect to own profile
+        if (myEmp) navigate(`/employees/${myEmp.id}`);
+      } else {
+        setEmployees(empRes.data);
+      }
       setFields(fieldRes.data || []);
     } catch (err) {
       console.error('Fetch Data Error:', err);

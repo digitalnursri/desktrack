@@ -153,7 +153,8 @@ function numberToWords(n) {
 
 // ─── Main Component ──────────────────────────────────────────────────────────
 const Payroll = () => {
-  const { selectedDate, formatCurrency, currencyConfig, hasPermission, deductionTypes: globalDeductionTypes } = useAuth();
+  const { user, selectedDate, formatCurrency, currencyConfig, hasPermission, deductionTypes: globalDeductionTypes } = useAuth();
+  const isEmployee = user?.role === 'EMPLOYEE';
   const now = new Date(selectedDate);
   const [selMonth, setSelMonth] = useState(now.getMonth() + 1);
   const [selYear,  setSelYear]  = useState(now.getFullYear());
@@ -255,11 +256,23 @@ const Payroll = () => {
         api.get('/payroll/form16').catch(() => ({ data: [] })),
         api.get('/payroll/tax-declarations').catch(() => ({ data: [] })),
       ]);
+      const allEmps = empRes.data || [];
+      const myEmp = isEmployee ? allEmps.find(e => e.email === user?.email) : null;
+      const myEmpId = myEmp?.id;
+
       setSummary(sumRes.data || {});
-      setPayrollRecords(recRes.data || []);
-      setEmployees(empRes.data || []);
-      setSalaryStructures(ssRes.data || []);
-      setForm16List(f16Res.data || []);
+      // EMPLOYEE: filter to only their own data
+      if (isEmployee && myEmpId) {
+        setPayrollRecords((recRes.data || []).filter(r => r.employee_id === myEmpId));
+        setEmployees([myEmp]);
+        setSalaryStructures((ssRes.data || []).filter(s => s.employee_id === myEmpId));
+        setForm16List((f16Res.data || []).filter(f => f.employee_id === myEmpId));
+      } else {
+        setPayrollRecords(recRes.data || []);
+        setEmployees(allEmps);
+        setSalaryStructures(ssRes.data || []);
+        setForm16List(f16Res.data || []);
+      }
       // Merge persisted tax declarations into taxDeclMap (DB wins over local default)
       const tdList = tdRes.data || [];
       if (tdList.length > 0) {

@@ -73,7 +73,8 @@ const getStatusBadge = (status, reason = '') => {
 };
 
 const Attendance = () => {
-  const { isCheckedIn, toggleCheckIn, selectedDate, setSelectedDate, shifts } = useAuth();
+  const { user, isCheckedIn, toggleCheckIn, selectedDate, setSelectedDate, shifts } = useAuth();
+  const isEmployee = user?.role === 'EMPLOYEE';
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('All');
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -138,7 +139,12 @@ const Attendance = () => {
           displayStatus: r.displayStatus || (r.status || '').replace('_', ' ')
         };
       });
-      setRecords(mapped);
+      // EMPLOYEE role: show only their own record
+      if (isEmployee && user?.email) {
+        setRecords(mapped.filter(r => r.email === user.email));
+      } else {
+        setRecords(mapped);
+      }
     } catch (err) {
       console.error('Failed to fetch attendance:', err);
     } finally {
@@ -298,7 +304,7 @@ const Attendance = () => {
                 <th className="px-5 py-4 font-bold text-slate-600 uppercase text-xs tracking-wider border-b border-slate-200">Work Hours</th>
                 <th className="px-5 py-4 font-bold text-slate-600 uppercase text-xs tracking-wider border-b border-slate-200">Productivity</th>
                 <th className="px-5 py-4 font-bold text-slate-600 uppercase text-xs tracking-wider border-b border-slate-200 text-center">Status</th>
-                <th className="px-5 py-4 font-bold text-slate-600 uppercase text-xs tracking-wider border-b border-slate-200 text-right">Actions</th>
+                {!isEmployee && <th className="px-5 py-4 font-bold text-slate-600 uppercase text-xs tracking-wider border-b border-slate-200 text-right">Actions</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -362,6 +368,7 @@ const Attendance = () => {
                   <td className="px-5 py-3 text-center">
                     {getStatusBadge(record.displayStatus || record.status, record.reason)}
                   </td>
+                  {!isEmployee && (
                   <td className="px-5 py-3">
                     <div className="flex items-center gap-2">
                       <Button variant="ghost" onClick={() => openEdit(record)} className="text-primary-600 font-bold text-xs px-2 py-1 h-auto hover:bg-primary-50 shrink-0">Edit</Button>
@@ -376,6 +383,7 @@ const Attendance = () => {
                       </button>
                     </div>
                   </td>
+                  )}
                 </tr>
               ))}
             </tbody>
