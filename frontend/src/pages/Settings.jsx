@@ -55,22 +55,39 @@ const Settings = () => {
   const [editOptionName, setEditOptionName] = useState('');
   const [loadingOptions, setLoadingOptions] = useState(false);
 
-  // Fetch role counts from employees
+  // Fetch roles from DB + employee counts
   useEffect(() => {
-    const fetchRoleCounts = async () => {
+    const fetchRolesAndCounts = async () => {
       try {
-        const res = await api.get('/employees');
-        const employees = res.data || [];
+        const [empRes, settingsRes] = await Promise.all([
+          api.get('/employees'),
+          api.get('/settings/config')
+        ]);
+        const employees = empRes.data || [];
         setAllEmployees(employees);
-        setRoles(prev => prev.map(role => ({
+
+        // Load saved roles from DB, merge with defaults
+        const savedRoles = settingsRes.data?.rolesConfig;
+        let mergedRoles = DEFAULT_ROLES;
+        if (savedRoles && Array.isArray(savedRoles) && savedRoles.length > 0) {
+          mergedRoles = savedRoles;
+        }
+        // Update user counts
+        const withCounts = mergedRoles.map(role => ({
           ...role,
           userCount: employees.filter(e => (e.role || '').toUpperCase() === role.roleKey).length
-        })));
+        }));
+        setRoles(withCounts);
+
+        // Sync permissions to AuthContext
+        const permMap = {};
+        withCounts.forEach(r => { if (r.roleKey) permMap[r.roleKey] = r.permissions || {}; });
+        setRolePermissions(permMap);
       } catch (err) {
-        console.error('Error fetching role counts:', err);
+        console.error('Error fetching roles:', err);
       }
     };
-    fetchRoleCounts();
+    fetchRolesAndCounts();
   }, []);
 
   useEffect(() => {
@@ -145,13 +162,14 @@ const Settings = () => {
     { id: 'performance', name: 'Performance', description: 'KPIs and appraisals (Beta)', icon: TrendingUp },
   ];
 
-  // Roles with live user counts
-  const [roles, setRoles] = useState([
-    { id: '1', name: 'Super Admin', roleKey: 'SUPER_ADMIN', description: 'Full access to all modules and system settings.', userCount: 0, permissions: { employees: ['view', 'create', 'edit', 'delete'], attendance: ['view', 'create', 'edit', 'delete'], leaves: ['view', 'approve', 'reject'], payroll: ['view', 'edit', 'approve'] } },
-    { id: '2', name: 'HR Manager', roleKey: 'HR', description: 'Manage employee records, leaves and basic payroll.', userCount: 0, permissions: { employees: ['view', 'create', 'edit'], attendance: ['view', 'edit'], leaves: ['view', 'approve', 'reject'], payroll: ['view'] } },
-    { id: '3', name: 'Manager', roleKey: 'MANAGER', description: 'Team oversight with read access to reports.', userCount: 0, permissions: { employees: ['view'], attendance: ['view', 'edit'], leaves: ['view', 'approve'] } },
-    { id: '4', name: 'Employee', roleKey: 'EMPLOYEE', description: 'Standard access for personal self-service.', userCount: 0, permissions: { employees: ['view'], attendance: ['view'], leaves: ['view', 'apply'] } },
-  ]);
+  // Default roles
+  const DEFAULT_ROLES = [
+    { id: '1', name: 'Super Admin', roleKey: 'SUPER_ADMIN', description: 'Full access to all modules and system settings.', userCount: 0, permissions: { employees: ['view', 'create', 'edit', 'delete'], attendance: ['view', 'create', 'edit', 'delete'], leaves: ['view', 'approve', 'reject'], payroll: ['view', 'edit', 'approve'], reports: ['view', 'create', 'edit', 'delete'], performance: ['view', 'create', 'edit', 'delete'], settings: ['view', 'edit'] } },
+    { id: '2', name: 'HR Manager', roleKey: 'HR', description: 'Manage employee records, leaves and basic payroll.', userCount: 0, permissions: { employees: ['view', 'create', 'edit'], attendance: ['view', 'edit'], leaves: ['view', 'approve', 'reject'], payroll: ['view'], reports: ['view'], performance: ['view'], settings: ['view', 'edit'] } },
+    { id: '3', name: 'Manager', roleKey: 'MANAGER', description: 'Team oversight with read access to reports.', userCount: 0, permissions: { employees: ['view'], attendance: ['view', 'edit'], leaves: ['view', 'approve'], reports: ['view'], performance: ['view'] } },
+    { id: '4', name: 'Employee', roleKey: 'EMPLOYEE', description: 'Standard access for personal self-service.', userCount: 0, permissions: { employees: ['view'], attendance: ['view'], leaves: ['view'] } },
+  ];
+  const [roles, setRoles] = useState(DEFAULT_ROLES);
 
   const [shiftFormData, setShiftFormData] = useState({
     name: '', shift_start_time: '10:00', shift_end_time: '19:00', total_working_hours: 9, grace_minutes: 15, late_start_time: '10:16', late_end_time: '10:59', overlate_start_time: '11:00', halfday_start_time: '12:30'
@@ -339,7 +357,7 @@ const Settings = () => {
     }
   };
 
-  const handleSaveRole = (e) => {
+  const handleSaveRole = async (e) => {
     e.preventDefault();
     let updatedRoles;
     if (editingRole) {
@@ -352,12 +370,35 @@ const Settings = () => {
 
     // Sync permissions to AuthContext — enforced app-wide
     const permMap = {};
-    updatedRoles.forEach(r => {
-      if (r.roleKey) permMap[r.roleKey] = r.permissions || {};
-    });
-    setRolePermissions(prev => ({ ...prev, ...permMap }));
+    updatedRoles.forEach(r => { if (r.roleKey) permMap[r.roleKey] = r.permissions || {}; });
+    setRolePermissions(permMap);
+
+    // Persist roles to DB
+    try {
+      await api.put('/settings/config', { settings: { rolesConfig: updatedRoles, rolePermissions: permMap } });
+    } catch (err) {
+      console.error('Failed to save roles:', err);
+    }
 
     setShowRoleModal(false);
+  };
+
+  const handleDeleteRole = async (role) => {
+    if (['1', '2', '3', '4'].includes(role.id)) {
+      alert('Cannot delete system roles.');
+      return;
+    }
+    if (!window.confirm(`Delete role "${role.name}"? Users with this role will need reassignment.`)) return;
+    const updatedRoles = roles.filter(r => r.id !== role.id);
+    setRoles(updatedRoles);
+    const permMap = {};
+    updatedRoles.forEach(r => { if (r.roleKey) permMap[r.roleKey] = r.permissions || {}; });
+    setRolePermissions(permMap);
+    try {
+      await api.put('/settings/config', { settings: { rolesConfig: updatedRoles, rolePermissions: permMap } });
+    } catch (err) {
+      console.error('Failed to delete role:', err);
+    }
   };
 
   const togglePermission = (module, perm) => {
@@ -580,7 +621,7 @@ const Settings = () => {
                             <button onClick={() => { setEditingRole(role); setRoleFormData(role); setShowRoleModal(true); }} className="p-1.5 text-slate-400 hover:text-primary-600 hover:bg-primary-50 rounded-lg transition-colors" title="Edit Permissions">
                               <Edit size={16} />
                             </button>
-                            <button className="p-1.5 text-slate-400 hover:text-alert-600 hover:bg-alert-50 rounded-lg transition-colors" title="Delete">
+                            <button onClick={() => handleDeleteRole(role)} className="p-1.5 text-slate-400 hover:text-alert-600 hover:bg-alert-50 rounded-lg transition-colors" title="Delete">
                               <Trash2 size={16} />
                             </button>
                           </div>

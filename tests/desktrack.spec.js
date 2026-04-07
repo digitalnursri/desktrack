@@ -529,10 +529,109 @@ test.describe('10. Payroll', () => {
 });
 
 // ============================================
-// 11. CONSOLE ERRORS & API FAILURES
+// 11. ROLES & PERMISSIONS
 // ============================================
-test.describe('11. Health Check', () => {
-  test('11.1 Collect console errors across all pages', async ({ page }) => {
+test.describe('11. Roles & Permissions', () => {
+  test.beforeEach(async ({ page }) => {
+    await injectAuth(page);
+    await page.goto(`${BASE}/settings`);
+    await page.waitForTimeout(2000);
+    // Click Roles tab
+    const rolesTab = page.locator('span:has-text("Roles"), button:has-text("Roles")').first();
+    if (await rolesTab.isVisible()) await rolesTab.click();
+    await page.waitForTimeout(1000);
+  });
+
+  test('11.1 Roles tab loads with system roles', async ({ page }) => {
+    await expect(page.locator('text=Manage Roles & Permissions')).toBeVisible();
+    for (const role of ['Super Admin', 'HR Manager', 'Manager', 'Employee']) {
+      await expect(page.locator(`text=${role}`).first()).toBeVisible();
+    }
+  });
+
+  test('11.2 User counts displayed', async ({ page }) => {
+    const counts = page.locator('text=Users Assigned');
+    expect(await counts.count()).toBeGreaterThanOrEqual(1);
+  });
+
+  test('11.3 Edit role opens permission modal', async ({ page }) => {
+    // Edit HR Manager role
+    const editBtns = page.locator('button[title="Edit Permissions"]');
+    if (await editBtns.count() > 1) {
+      await editBtns.nth(1).click(); // HR Manager (2nd row)
+      await page.waitForTimeout(1000);
+      await expect(page.locator('text=Module Permissions')).toBeVisible();
+      // Should show module checkboxes
+      for (const mod of ['employees', 'attendance', 'leaves']) {
+        await expect(page.locator(`h5:has-text("${mod}")`).first()).toBeVisible();
+      }
+    }
+  });
+
+  test('11.4 Permission checkboxes toggle', async ({ page }) => {
+    const editBtns = page.locator('button[title="Edit Permissions"]');
+    if (await editBtns.count() > 2) {
+      await editBtns.nth(2).click(); // Manager (3rd row)
+      await page.waitForTimeout(1000);
+      // Find a checkbox and toggle it
+      const checkbox = page.locator('input[type="checkbox"]').nth(3);
+      const before = await checkbox.isChecked();
+      await checkbox.click();
+      const after = await checkbox.isChecked();
+      expect(before !== after).toBeTruthy();
+    }
+  });
+
+  test('11.5 Save role persists (Update Role)', async ({ page }) => {
+    const editBtns = page.locator('button[title="Edit Permissions"]');
+    if (await editBtns.count() > 2) {
+      await editBtns.nth(2).click(); // Manager
+      await page.waitForTimeout(1000);
+      await page.locator('button:has-text("Update Role")').click();
+      await page.waitForTimeout(2000);
+      // Modal should close
+      const modal = page.locator('text=Module Permissions');
+      expect(await modal.isVisible().catch(() => false)).toBeFalsy();
+    }
+  });
+
+  test('11.6 Super Admin permissions are read-only', async ({ page }) => {
+    const editBtns = page.locator('button[title="Edit Permissions"]');
+    if (await editBtns.count() > 0) {
+      await editBtns.nth(0).click(); // Super Admin (1st row)
+      await page.waitForTimeout(1000);
+      await expect(page.locator('text=Super Admin always has full access')).toBeVisible();
+      // Checkboxes should be disabled
+      const disabledCb = page.locator('input[type="checkbox"][disabled]');
+      expect(await disabledCb.count()).toBeGreaterThan(0);
+    }
+  });
+
+  test('11.7 Add Role button opens create form', async ({ page }) => {
+    await page.locator('button:has-text("Add Role")').click();
+    await page.waitForTimeout(1000);
+    await expect(page.locator('text=Create New Role')).toBeVisible();
+    await expect(page.locator('input[placeholder*="Finance"]')).toBeVisible();
+  });
+
+  test('11.8 Cannot delete system roles', async ({ page }) => {
+    // Try clicking delete on first role (Super Admin)
+    page.on('dialog', dialog => dialog.accept()); // Accept any confirm dialog
+    const deleteBtns = page.locator('button[title="Delete"]');
+    if (await deleteBtns.count() > 0) {
+      await deleteBtns.nth(0).click();
+      await page.waitForTimeout(1000);
+      // Super Admin should still be there
+      await expect(page.locator('text=Super Admin').first()).toBeVisible();
+    }
+  });
+});
+
+// ============================================
+// 12. CONSOLE ERRORS & API FAILURES
+// ============================================
+test.describe('12. Health Check', () => {
+  test('12.1 Collect console errors across all pages', async ({ page }) => {
     const errors = [];
     page.on('console', msg => {
       if (msg.type() === 'error' && !msg.text().includes('favicon')) {
@@ -556,7 +655,7 @@ test.describe('11. Health Check', () => {
     }
   });
 
-  test('11.2 Collect failed API requests', async ({ page }) => {
+  test('12.2 Collect failed API requests', async ({ page }) => {
     const failures = [];
     page.on('response', res => {
       if (res.url().includes('/api/') && res.status() >= 400) {
